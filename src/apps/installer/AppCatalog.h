@@ -28,7 +28,8 @@ struct CatalogApp {
 class AppCatalog {
  public:
   static std::string normalizeRepo(const std::string& input);
-  static std::string buildRawUrl(const std::string& repo, const std::string& branch, const std::string& path);
+  static std::string buildRawUrl(const std::string& repo, const std::string& branch, const std::string& path,
+                                 bool cacheBust = false);
 
   static bool validateSource(const std::string& repo, const std::string& branch, std::string& outCatalogName,
                              std::string& outError);

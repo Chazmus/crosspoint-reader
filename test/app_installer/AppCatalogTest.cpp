@@ -31,6 +31,10 @@ TEST(AppCatalogTest, BuildRawUrl) {
 
   EXPECT_EQ(AppCatalog::buildRawUrl("user/repo", "master", "/manifest.json"),
             "https://raw.githubusercontent.com/user/repo/master/manifest.json");
+
+  std::string busted = AppCatalog::buildRawUrl("chazmus/crosspoint-apps", "main", "catalog.json", true);
+  EXPECT_NE(busted.find("https://raw.githubusercontent.com/chazmus/crosspoint-apps/main/catalog.json?t="),
+            std::string::npos);
 }
 
 TEST(AppCatalogTest, ParseCatalogJsonSuccess) {
