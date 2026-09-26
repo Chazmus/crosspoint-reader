@@ -7,6 +7,7 @@
 
 #if defined(ESP32) || defined(ARDUINO)
 #include <Esp.h>
+
 #include "network/HttpDownloader.h"
 #endif
 
@@ -57,7 +58,7 @@ bool AppInstaller::installApp(const CatalogApp& app, ProgressCallback onProgress
     }
     filePathInRepo += file;
 
-    std::string url = AppCatalog::buildRawUrl(app.sourceRepo, app.sourceBranch, filePathInRepo);
+    std::string url = AppCatalog::buildRawUrl(app.sourceRepo, app.sourceBranch, filePathInRepo, true);
     LOG_INF("APPINST", "Downloading [%zu/%zu] %s -> %s", i + 1, totalFiles, url.c_str(), destPath.c_str());
 
     auto progressHandler = [&](size_t downloaded, size_t total) {

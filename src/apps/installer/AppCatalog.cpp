@@ -7,8 +7,12 @@
 #include <cstring>
 
 #if defined(ESP32) || defined(ARDUINO)
+#include <Arduino.h>
 #include <Esp.h>
+
 #include "network/HttpDownloader.h"
+#else
+#include <chrono>
 #endif
 
 namespace {
@@ -90,13 +94,24 @@ std::string AppCatalog::normalizeRepo(const std::string& input) {
   return owner + "/" + repo;
 }
 
-
-std::string AppCatalog::buildRawUrl(const std::string& repo, const std::string& branch, const std::string& path) {
+std::string AppCatalog::buildRawUrl(const std::string& repo, const std::string& branch, const std::string& path,
+                                    const bool cacheBust) {
   std::string b = branch.empty() ? "main" : branch;
   std::string url = "https://raw.githubusercontent.com/" + repo + "/" + b;
   if (!path.empty()) {
     if (path.front() != '/') url += "/";
     url += path;
+  }
+  if (cacheBust) {
+#if defined(ESP32) || defined(ARDUINO)
+    const uint32_t t = millis();
+#else
+    const auto t =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
+#endif
+    url += (url.find('?') == std::string::npos) ? "?t=" : "&t=";
+    url += std::to_string(t);
   }
   return url;
 }
@@ -222,7 +237,7 @@ bool AppCatalog::validateSource(const std::string& repo, const std::string& bran
   for (const auto& b : branchesToTry) {
     const char* filenames[] = {"catalog.json", "catalogue.json"};
     for (const char* fn : filenames) {
-      std::string url = buildRawUrl(normRepo, b, fn);
+      std::string url = buildRawUrl(normRepo, b, fn, true);
       LOG_DBG("APPSRC", "Validating source with URL: %s", url.c_str());
 
       Storage.remove(TMP_VALIDATE_FILE);
@@ -292,7 +307,7 @@ bool AppCatalog::fetchCatalog(const AppSource& source, std::vector<CatalogApp>& 
   for (const auto& b : branchesToTry) {
     const char* filenames[] = {"catalog.json", "catalogue.json"};
     for (const char* fn : filenames) {
-      std::string url = buildRawUrl(normRepo, b, fn);
+      std::string url = buildRawUrl(normRepo, b, fn, true);
       Storage.remove(TMP_CATALOG_FILE);
       auto res = HttpDownloader::downloadToFile(url, TMP_CATALOG_FILE, nullptr);
       if (res == HttpDownloader::OK) {
