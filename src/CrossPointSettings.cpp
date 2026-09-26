@@ -109,6 +109,10 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
   // display-index mapping and is skipped by the generic persistence loop.
   doc["longPressMenuFunction"] = longPressMenuFunction;
   doc["shortPwrBtn"] = shortPwrBtn;
+  // App ID that provides the sleep screen when sleepScreen == APP
+  if (sleepScreenAppId[0] != '\0') {
+    doc["sleepScreenAppId"] = sleepScreenAppId;
+  }
 
   // Language -- managed by LanguageSelectActivity, not in SettingsList.
   // Stored as ISO code string ("EN", "DE", ...) for stability across enum reorders.
@@ -275,6 +279,9 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc) {
   const char* sfn = doc["sdFontFamilyName"] | "";
   strncpy(sdFontFamilyName, sfn, sizeof(sdFontFamilyName) - 1);
   sdFontFamilyName[sizeof(sdFontFamilyName) - 1] = '\0';
+  const char* appid = doc["sleepScreenAppId"] | "";
+  strncpy(sleepScreenAppId, appid, sizeof(sleepScreenAppId) - 1);
+  sleepScreenAppId[sizeof(sleepScreenAppId) - 1] = '\0';
   if (sdFontFamilyName[0] == '\0') {
     switch (storedFontFamily) {
       case LEGACY_NOTOSERIF:

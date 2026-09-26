@@ -27,6 +27,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     QUICK_RESUME = 6,
     TRANSPARENT_CUSTOM = 7,
     COVER_TRANSPARENT = 8,
+    APP = 9,
     SLEEP_SCREEN_MODE_COUNT
   };
   enum SLEEP_SCREEN_COVER_MODE { FIT = 0, CROP = 1, SLEEP_SCREEN_COVER_MODE_COUNT };
@@ -372,6 +373,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t pluginsEnabled = 0;
   // User hid the Plugin Hub install row; cleared when plugins are turned back on.
   uint8_t pluginHubPromptHidden = 0;
+  // App ID that provides the sleep screen when sleepScreen == APP (empty = auto/first)
+  char sleepScreenAppId[16] = "";
   // Show hidden files/directories (starting with '.') in the file browser (0 = hidden, 1 = show)
   uint8_t showHiddenFiles = 0;
   // Show the title and author read from inside each book rather than its

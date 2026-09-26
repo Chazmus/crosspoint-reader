@@ -26,6 +26,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "activities/reader/ReaderUtils.h"
+#include "apps/AppRegistry.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "images/Logo120.h"
@@ -749,6 +750,8 @@ void SleepActivity::onEnter() {
       } else {
         return renderCustomSleepScreen();
       }
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::APP):
+      return renderAppSleepScreen();
     default:
       return renderDefaultSleepScreen();
   }
@@ -1115,4 +1118,20 @@ void SleepActivity::renderLastScreenSleepScreen() const {
 void SleepActivity::renderBlankSleepScreen() const {
   renderer.clearScreen();
   renderer.displayBuffer(kSleepClean);
+}
+
+void SleepActivity::renderAppSleepScreen() const {
+  const auto* app = AppRegistry::getSleepScreenApp(SETTINGS.sleepScreenAppId);
+  if (app && app->renderSleepScreen) {
+    renderer.clearScreen();
+    if (app->renderSleepScreen(*app, renderer)) {
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      return;
+    }
+    LOG_INF("SLP", "App '%s' sleep screen render failed, falling back to default", app->resolveId());
+  } else {
+    LOG_INF("SLP", "No app sleep screen provider found for '%s', falling back to default", SETTINGS.sleepScreenAppId);
+  }
+
+  renderDefaultSleepScreen();
 }
