@@ -13,6 +13,9 @@
 #include "activities/Activity.h"
 #include "fontIds.h"
 #include "network/HttpDownloader.h"
+#include <HalClock.h>
+#include <HalPowerManager.h>
+#include "util/QrUtils.h"
 
 namespace lua_host {
 namespace {
@@ -365,6 +368,19 @@ int l_gfx_drawSprite(lua_State* L) {
   return 0;
 }
 
+int l_gfx_drawQrCode(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (ctx && ctx->renderer) {
+    const int x = checkInt(L, 1);
+    const int y = checkInt(L, 2);
+    const int w = checkInt(L, 3);
+    const int h = checkInt(L, 4);
+    const char* text = luaL_checkstring(L, 5);
+    QrUtils::drawQrCode(*ctx->renderer, Rect{x, y, w, h}, text);
+  }
+  return 0;
+}
+
 int l_gfx_displayBuffer(lua_State* L) {
   auto* ctx = getContext(L);
   if (ctx && ctx->renderer) {
@@ -622,6 +638,36 @@ int l_crosspoint_getMemoryInfo(lua_State* L) {
   return 1;
 }
 
+int l_crosspoint_getBattery(lua_State* L) {
+  lua_newtable(L);
+  lua_pushinteger(L, powerManager.getBatteryPercentage());
+  lua_setfield(L, -2, "percentage");
+  return 1;
+}
+
+int l_crosspoint_getTime(lua_State* L) {
+  struct tm t = {};
+  bool ok = halClock.localTime(t);
+  if (!ok) {
+    time_t now = time(nullptr);
+    localtime_r(&now, &t);
+  }
+  lua_newtable(L);
+  lua_pushinteger(L, t.tm_year + 1900);
+  lua_setfield(L, -2, "year");
+  lua_pushinteger(L, t.tm_mon + 1);
+  lua_setfield(L, -2, "month");
+  lua_pushinteger(L, t.tm_mday);
+  lua_setfield(L, -2, "day");
+  lua_pushinteger(L, t.tm_hour);
+  lua_setfield(L, -2, "hour");
+  lua_pushinteger(L, t.tm_min);
+  lua_setfield(L, -2, "min");
+  lua_pushinteger(L, t.tm_sec);
+  lua_setfield(L, -2, "sec");
+  return 1;
+}
+
 int appModuleSearcher(lua_State* L) {
   auto* ctx = getContext(L);
   const char* rawModName = luaL_checkstring(L, 1);
@@ -781,6 +827,7 @@ void registerBindings(lua_State* L, HostContext* ctx) {
       {"getLineHeight", l_gfx_getLineHeight},
       {"drawBitmapFile", l_gfx_drawBitmapFile},
       {"drawSprite", l_gfx_drawSprite},
+      {"drawQrCode", l_gfx_drawQrCode},
       {"displayBuffer", l_gfx_displayBuffer},
       {"setOrientation", l_gfx_setOrientation},
       {"getOrientation", l_gfx_getOrientation},
@@ -897,6 +944,8 @@ void registerBindings(lua_State* L, HostContext* ctx) {
       {"withWifi", l_crosspoint_withWifi},
       {"disconnectWifi", l_crosspoint_disconnectWifi},
       {"httpGet", l_crosspoint_httpGet},
+      {"getBattery", l_crosspoint_getBattery},
+      {"getTime", l_crosspoint_getTime},
       {"setSleepApp", l_crosspoint_setSleepApp},
       {"getSleepApp", l_crosspoint_getSleepApp},
       {"clearSleepApp", l_crosspoint_clearSleepApp},
