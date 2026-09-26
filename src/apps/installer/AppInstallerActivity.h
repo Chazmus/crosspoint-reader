@@ -20,6 +20,7 @@ class AppInstallerActivity final : public UiTabListActivity {
   bool skipLoopDelay() override { return state_ == State::DOWNLOADING; }
 
  protected:
+  const char* headerTitle() const override;
   int tabCount() const override { return 2; }
   int activeTab() const override { return currentTab_; }
   const char* tabLabel(int index) const override { return index == 0 ? "Apps" : "Sources"; }
@@ -34,15 +35,7 @@ class AppInstallerActivity final : public UiTabListActivity {
   bool handleCustomInput() override;
 
  private:
-  enum class State {
-    WIFI_CONNECTING,
-    LOADING_CATALOGS,
-    LIST,
-    VALIDATING_SOURCE,
-    DOWNLOADING,
-    COMPLETE,
-    ERROR
-  };
+  enum class State { WIFI_CONNECTING, LOADING_CATALOGS, LIST, VALIDATING_SOURCE, DOWNLOADING, COMPLETE, ERROR };
 
   State state_ = State::WIFI_CONNECTING;
   int currentTab_ = 0;
