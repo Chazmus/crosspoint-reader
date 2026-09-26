@@ -1,16 +1,19 @@
-# CrossPoint Reader Development Guide
+# CrossPoint Reader Development Guide (ESP32-S3 Fork)
 
-Project: Open-source e-reader firmware for Xteink X4 (ESP32-C3)
-Mission: Provide a lightweight, high-performance reading experience focused on EPUB rendering on constrained hardware.
+Project: Open-source e-reader firmware targeting ESP32-S3 devices (e.g., Xteink X4 Pro, Seeed reTerminal Sticky, M5PaperMono).
+Mission: Provide a high-performance reading and application experience taking full advantage of the dual-core ESP32-S3, PSRAM, and touch screen capabilities.
+
+> **Note on Fork Target**: This fork specifically targets **ESP32-S3** hardware. Legacy ESP32-C3-only constraints (no PSRAM, extreme DRAM starvation) are superseded by the S3 architecture (e.g., 8MB Octal PSRAM on X4 Pro), enabling modular apps, games, and richer features while maintaining rock-solid stability.
 
 ## AI Agent Identity and Cognitive Rules
 
 * Role: Senior Embedded Systems Engineer (ESP-IDF/Arduino-ESP32 specialized).
-* Primary Constraint: 380KB RAM is the hard ceiling. Stability is non-negotiable.
+* Target Architecture: ESP32-S3 (dual-core Xtensa LX7 @ 240MHz, PSRAM-enabled).
+* Stability & Memory Discipline: Even with 8MB PSRAM on the S3, leak-free memory management, stack safety, and deterministic resource release are non-negotiable.
 * Evidence-Based Reasoning: Before proposing a change, you MUST cite the specific file path and line numbers that justify the modification.
-* Anti-Hallucination: Do not assume the existence of libraries or ESP-IDF functions. If you are unsure of an API's availability for the ESP32-C3 RISC-V target, check the freeink-sdk source or the FreeInk SDK docs (https://freeink.org/llms.txt for an LLM-readable index) first.
-* No Unfounded Claims: Do not claim performance gains or memory savings without explaining the technical mechanism (e.g., DRAM vs IRAM usage).
-* Resource Justification: You must justify any new heap allocation (new, malloc, std::vector) or explain why a stack/static alternative was rejected.
+* Anti-Hallucination: Do not assume the existence of libraries or ESP-IDF functions. Check the freeink-sdk source or the FreeInk SDK docs (https://freeink.org/llms.txt for an LLM-readable index) first.
+* No Unfounded Claims: Do not claim performance gains or memory savings without explaining the technical mechanism.
+* Resource Justification: Explain heap allocations and memory placement (PSRAM vs internal DRAM vs Flash).
 * Verification: After suggesting a fix, instruct the user on how to verify it (e.g., monitoring heap via Serial or checking a specific cache file).
 
 ---
@@ -46,16 +49,16 @@ Never invoke or probe `clang-format` directly. The repository wrapper is the onl
 
 ## Platform and Hardware Constraints
 
-### Hardware Specs
+### Hardware Specs (ESP32-S3 Focus)
 
-* MCUs: ESP32-C3 (single-core RISC-V @ 160MHz) and ESP32-S3 (`sticky`, dual-core Xtensa LX7)
-* RAM: ~380KB usable on ESP32-C3 (VERY LIMITED - primary project constraint)
-  * **NO PSRAM on C3**.
-  * **Single Buffer Mode**: Only ONE 48KB framebuffer (not double-buffered)
+* MCU: ESP32-S3 (dual-core Xtensa LX7 @ 240MHz)
+* RAM: 512KB internal SRAM + 8MB Octal PSRAM (`dio_opi` on Xteink X4 Pro)
+  * Rich memory headroom for apps, caches, and networking.
 * Flash: 16MB (Instruction storage and static data)
-* Display: 800x480 E-Ink (Slow refresh, monochrome, 1-2s full update)
+* Display: 800x480 E-Ink (SSD1677 on X4 Pro)
   * Framebuffer: 48,000 bytes (800 × 480 ÷ 8)
-* Storage: SD Card (Used for books and aggressive caching)
+* Touch & Input: Capacitive touch (Goodix GT911 on X4 Pro) + physical buttons / capacitive home button
+* Storage: SD Card / SDMMC (Used for books, apps, and aggressive caching)
 
 ### The Resource Protocol
 
@@ -108,10 +111,10 @@ Never invoke or probe `clang-format` directly. The repository wrapper is the onl
 * **Standard**: C++20 (`-std=c++2a`). No Exceptions, No RTTI.
 * **Logging**: ALWAYS use `LOG_INF`, `LOG_DBG`, or `LOG_ERR` from `Logging.h`. Raw Serial output is deprecated.
 * **Environments** (in `platformio.ini`):
-  * `default`: Development (LOG_LEVEL=2, serial enabled)
-  * `gh_release`: Production (LOG_LEVEL=0)
-  * `gh_release_rc`: Release candidate (LOG_LEVEL=1)
-  * `slim`: Minimal build (no serial logging)
+  * **`x4pro` (PRIMARY TARGET)**: Development/default build for Xteink X4 Pro (`pio run -e x4pro`). ESP32-S3 (`esp32-s3-devkitc1-n16r8`), 8MB Octal PSRAM (`dio_opi`), 16MB Flash, SSD1677 800x480 + GT911 touchscreen, native 1-bit SDMMC, USB CDC/MSC, `LOG_LEVEL=2`. **Always compile and test against `x4pro` in this repository.**
+  * `x4c`: Xteink X4 Classic buttons-only variant (no touch, no frontlight).
+  * `sticky`: Seeed reTerminal Sticky (ESP32-S3, 8MB PSRAM, SSD1677 + GT911).
+  * Legacy C3 profiles: `default` (legacy C3 dev), `gh_release` (legacy C3 release), `slim`.
 
 ### Critical Build Flags
 
@@ -507,6 +510,141 @@ void onExit()   { /* free: vTaskDelete, free buffer, close member FsFiles */ Act
 
 **Critical**: Free resources in reverse order. Delete tasks BEFORE activity destruction.
 
+### Modular Apps & Plugin Framework (`src/apps/`)
+
+This fork introduces an extensible, registry-based modular app subsystem. To ensure easy upstream rebasing, all custom apps and plugins reside completely isolated inside `src/apps/`, minimizing touchpoints to the upstream codebase.
+
+#### Architecture
+
+```text
+src/apps/
+├── AppDescriptor.h         # App contract and metadata (Flash-resident)
+├── AppRegistry.h/.cpp      # Static catalog of registered apps
+├── AppsActivity.h/.cpp     # FreeInkUI launcher for browsing and launching apps
+└── <your_app>/             # Self-contained app implementation (e.g., chess/)
+```
+
+#### How to Develop a New App
+
+1. **Create App Directory**:
+   Create a dedicated directory under `src/apps/<app_id>/` (e.g., `src/apps/calculator/` or `src/apps/chess/`).
+2. **Implement an Activity Subclass**:
+   Derive your app from [`Activity`](file:///home/chaz_bailey/workspace/crosspoint-reader/src/activities/Activity.h) (or [`UiAppHost`](file:///home/chaz_bailey/workspace/crosspoint-reader/src/components/UiAppHost.h) / [`UiListActivity`](file:///home/chaz_bailey/workspace/crosspoint-reader/src/activities/UiListActivity.h)):
+   ```cpp
+   class MyAppActivity final : public Activity {
+    public:
+     MyAppActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
+         : Activity("MyApp", renderer, mappedInput) {}
+     void onEnter() override;
+     void onExit() override;
+     void loop() override;
+     void render(RenderLock&&) override;
+   };
+   ```
+3. **Register the App in [`src/apps/AppRegistry.cpp`](file:///home/chaz_bailey/workspace/crosspoint-reader/src/apps/AppRegistry.cpp)**:
+   Add a descriptor entry to `registry()` in `AppRegistry.cpp`:
+   ```cpp
+   #include "myapp/MyAppActivity.h"
+
+   // In registry():
+   {
+       "myapp",                             // Unique ID
+       "My App Name",                      // Title (or localized via getTitle)
+       "Description of what this app does",// Subtitle
+       nullptr,                            // Optional getTitle() fn: []() { return tr(STR_...); }
+       nullptr,                            // Optional getDescription() fn
+       UIIcon::Blocks,                     // Icon for the launcher list
+       [](GfxRenderer& r, MappedInputManager& in) -> std::unique_ptr<Activity> {
+         return std::make_unique<MyAppActivity>(r, in);
+       },
+   },
+   ```
+4. **App Guidelines**:
+   - **Offline-First & Battery Discipline**: If your app uses network features, keep the Wi-Fi radio turned off (`WIFI_OFF`) by default. Bring up Wi-Fi on-demand for synchronization, then immediately disconnect and turn off the radio (`WiFi.disconnect(true); WiFi.mode(WIFI_OFF);`).
+   - **SD Card Storage**: Store app data, caches, or state in a dedicated folder under `/.crosspoint/apps/<app_id>/` via `HalStorage`.
+   - **Dual Input**: Support both capacitive touch (`mappedInput.wasScreenTapped(x, y)`) and physical 5-button D-pad controls (`mappedInput.wasPressed(...)`).
+   - **E-Ink Refresh**: Use `HalDisplay::FAST_REFRESH` for interactive UI updates to avoid full-screen flashing.
+
+### Lua Application Subsystem (`src/apps/lua/` & `src/apps/installer/`)
+
+In addition to compiled C++ activities, CrossPoint supports dynamic, sandboxed **Lua 5.4 applications** stored on the SD card under `/apps/<app_id>/`. This enables rapid prototyping, community app development without firmware re-flashing, and an on-device App Store.
+
+#### Architecture
+
+```text
+src/apps/
+├── AppDescriptor.h         # App contract: title, icon, orientation, sleep screen hooks
+├── AppRegistry.h/.cpp      # Aggregates C++ apps and discovered SD Lua apps
+├── AppsActivity.h/.cpp     # FreeInkUI launcher for browsing and launching apps
+├── installer/              # On-device App Store / Package Manager
+│   ├── AppCatalog.h/.cpp   # Multi-repo catalog parser (catalog.json)
+│   ├── AppInstaller.h/.cpp # HTTPS downloader & file unpacker
+│   ├── AppSourceStore.h/.cpp # Persisted GitHub repositories list
+│   └── AppStoreActivity.h/.cpp # FreeInkUI store interface
+└── lua/                    # Lua 5.4 runtime and hardware bindings
+    ├── LuaPsramAlloc.h     # Heap allocator mapping all Lua memory to 8MB PSRAM
+    ├── LuaAppScanner.h/.cpp# Discovers SD apps and standalone .lua scripts
+    ├── LuaAppActivity.h/.cpp# Activity wrapper running the Lua lifecycle
+    └── LuaBindings.h/.cpp  # gfx, input, storage, crosspoint C++ bindings
+```
+
+#### Application Lifecycle & Callbacks
+
+Lua applications define the following global callback functions:
+- `onEnter()`: Called when the app starts. Read saved state with `storage.readFile()`.
+- `onTouch(x, y)`: Triggered on capacitive touchscreen tap with logical display coordinates.
+- `onInput(buttonId, isDown)`: Triggered on hardware button press (`input.BTN_UP`, `BTN_DOWN`, `BTN_CONFIRM`, etc.).
+- `onBack()`: Optional back-button handler. Return `true` to consume the back event (e.g. closing a dialog/sub-menu), or return `false`/nil to let CrossPoint exit the app.
+- `onUpdate(dt)`: Called periodically (~50ms) for animations or timers.
+- `onDraw()`: Primary rendering function. Clear the screen and draw UI elements using `gfx.*`.
+- `onSleepDraw()`: Low-power sleep screen renderer. Invoked when the reader enters sleep if this app was designated as the sleep app via `crosspoint.setSleepApp("<app_id>")`.
+- `onExit()`: Cleanup before the Lua state is closed.
+
+#### Display Orientation Protocol
+
+On CrossPoint hardware, the default orientation is **Portrait** ($480 \text{ wide} \times 800 \text{ high}$). However, apps such as chessboards or data tables require **Landscape** ($800 \text{ wide} \times 480 \text{ high}$).
+
+1. **Manifest Declaration**: Declare `"orientation"` in `/apps/<app_id>/manifest.json`:
+   ```json
+   {
+     "id": "chess",
+     "title": "Daily Chess",
+     "orientation": "landscape",
+     "sleepScreen": true
+   }
+   ```
+   Valid values: `"portrait"` (default), `"landscape"` (`"landscape_cw"`), `"portrait_inverted"`, `"landscape_ccw"`.
+2. **Firmware Auto-Rotation**:
+   - In `LuaAppActivity::onEnter()`, the original orientation is saved (`origOrientation_ = renderer.getOrientation()`), and the requested orientation is applied to `renderer`.
+   - In `LuaAppActivity::onExit()`, `renderer.setOrientation(origOrientation_)` is guaranteed to be restored.
+   - In `LuaAppActivity::renderSleepScreen()`, the display is temporarily set to the app's declared orientation, `onSleepDraw` executes, and the previous orientation is restored.
+3. **Runtime API**: Apps can also inspect or alter orientation dynamically:
+   - `gfx.setOrientation("landscape")` or `gfx.setOrientation(gfx.ORIENTATION_LANDSCAPE)`
+   - `gfx.getOrientation()` returns `"portrait"` or `"landscape"`
+4. **Coordinate Rotation**: `GfxRenderer` automatically rotates all drawing primitives (`drawRect`, `drawText`, `drawSprite`) and touch input coordinates (`tapToLogical`). Apps must always query `gfx.getWidth()` and `gfx.getHeight()` rather than hardcoding 800 or 480.
+
+#### Critical Architecture Rules for Lua
+
+1. **PSRAM Allocation**: All Lua heap memory MUST be allocated through `luaPsramAlloc` (in `LuaPsramAlloc.h`), which wraps `heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)`. Internal DRAM must never be depleted by script runtimes.
+2. **`LUA_32BITS=1` 24-bit Float Mantissa Hazard**:
+   Under `-DLUA_32BITS=1`, Lua's default number type is a 32-bit single-precision float (`float`) with only 24 bits of mantissa. Converting any 32-bit integer $> 2^{24}$ (such as CrossPoint's font hash IDs, e.g. `UI_10_FONT_ID = 1322569422`) via `lua_tonumber` / `luaL_checknumber` silently corrupts the lower bits, resulting in font misses and blank text.
+   **Rule**: Always use `luaL_checkinteger` for font IDs and handles, and in generic integer helpers check `if (lua_isinteger(L, arg))` first before falling back to `luaL_checknumber()`.
+3. **Mutex Serialization on SD Card**: The `storage` module in `LuaBindings.cpp` must strictly route file I/O through `HalStorage` (`Storage.openFileForRead`, `Storage.openFileForWrite`), never raw `SdFat`.
+4. **Thread-Safety & Multi-Task Synchronization (`luaMutex_`)**:
+   `LuaAppActivity` serializes all access to the `lua_State*` using `std::recursive_mutex luaMutex_`. Because `FreeInkUI` invokes `onDraw()` from the background `renderTaskLoop` task while touch taps (`onTouch()`) and hardware button events (`onInput()`, `onBack()`) arrive on the main loop task, any unsynchronized concurrent access corrupts the Lua VM stack, triggering CPU panics (`LoadProhibited` in `luaV_execute`). Every Lua lifecycle callback invocation and resource release MUST acquire `luaMutex_`.
+5. **Modular Architecture & Custom Package Searcher**:
+   `registerBindings()` injects `appModuleSearcher` at `package.searchers[2]`. This enables apps to split complex code across submodules and directories (e.g. `require("state")` or `require("views.grid")`) resolved relative to `/apps/<app_id>/`.
+6. **Serial Logging & Stack Tracebacks**:
+   The `log` module (`log.debug`, `log.info`, `log.warn`, `log.error`) routes directly to hardware serial logging (`LOG_DBG`, `LOG_INF`, `LOG_ERR`) at 115200 baud. In `LuaAppActivity::callLuaFunction()`, an error handler invokes `luaL_traceback()` so script runtime errors log the full call stack with file names and line numbers to the serial console.
+7. **Color Normalization (`isColorBlack`)**:
+   Both hardware firmware (`Color::White = 0x01`, `Color::Black = 0x10`) and desktop simulator (`Color::Black = 0`, `Color::White = 3`) share `isColorBlack(lua_State* L, int idx)`. Lua booleans (`true`=black, `false`=white) and integer color enums are normalized consistently across `drawText`, `drawCenteredText`, `drawRoundedRect`, and `fillRoundedRect`.
+8. **Memory Profiling**:
+   `crosspoint.getMemoryInfo()` provides real-time heap metrics: `{ luaMemoryKb = <int>, freeHeapKb = <int>, freePsramKb = <int> }`.
+9. **On-Demand Wi-Fi Lifecycle & Battery Safety**:
+   - `crosspoint.withWifi(callback)` connects on-demand using modal `WifiSelectionActivity` (temporarily rotating to Portrait if the app is in Landscape, then restoring previous orientation).
+   - Once the callback completes or raises an unhandled error, `LuaAppActivity` automatically calls `WiFi.disconnect(false)` to prevent battery drain.
+   - `LuaAppActivity::onExit()` and `handleLuaError()` also guarantee Wi-Fi is disconnected if it was started by the app.
+
 ### FreeRTOS Task Guidelines
 
 **Source**: [src/activities/util/KeyboardEntryActivity.cpp:45-50](src/activities/util/KeyboardEntryActivity.cpp)
@@ -706,6 +844,40 @@ upstream    https://github.com/crosspoint-reader/crosspoint-reader.git (fetch/pu
 3. If the user explicitly approves a push, inspect remotes again and use `fork` for the feature branch unless the user specifies otherwise.
 4. Never add Claude, Codex, or assistant self-attribution as a commit co-author or generated-by trailer.
 5. When a change supersedes or adapts another person's PR, verify the original human author from Git/GitHub and add that person as `Co-Authored-By`; skip bot authors.
+
+### Fork Maintenance & Upstream Sync Workflow
+
+This repository operates as an ESP32-S3 feature fork maintained on the `custom-crosspoint` branch.
+
+#### Branch Structure
+
+* **`upstream/develop`**: Canonical upstream branch (`https://github.com/crosspoint-reader/crosspoint-reader.git`).
+* **`develop`**: A pristine, commit-free mirror of `upstream/develop` (tracks `upstream/develop`). Never commit directly to `develop`.
+* **`custom-crosspoint`**: The active branch containing fork customizations (ESP32-S3 support, modular apps framework, etc.), tracking `origin/custom-crosspoint`.
+
+#### Rebase Policy (No Merge Commits)
+
+Do **not** use GitHub's web "Sync fork" button or `git merge upstream/develop` into customization branches. Doing so generates unnecessary merge commits and pollutes git history with divergent bubbles. Always rebase custom commits on top of upstream updates to maintain a clean linear history.
+
+#### Routine Upstream Sync
+
+To pull upstream updates and rebase custom work cleanly:
+
+```bash
+# 1. Update develop cleanly from upstream (fast-forward)
+git checkout develop
+git pull
+
+# 2. Rebase custom branch onto updated develop
+git checkout custom-crosspoint
+git rebase develop
+
+# 3. Push rebased changes to fork
+git push --force-with-lease origin custom-crosspoint
+
+# 4. (Optional) Keep GitHub fork's develop in sync with upstream
+git checkout develop && git push origin develop
+```
 
 ### Branch Naming Convention
 

@@ -1,0 +1,12 @@
+{
+  "game": {
+    "id": "crosspoint_demo",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 d5 5. exd5 Nxd5 6. O-O Bg4 7. Re1 Be7 8. h3 Bh5 9. g4 Bg6 10. Nxe5 Nxe5 11. Rxe5 Nb6 12. Bb3 O-O 13. Nc3 Bd6 14. Re1 Qh4 15. Qf3 Rae8 16. Be3 h5 17. Kg2 Nd7 18. d4 Nf6 19. g5 Ne4 20. Bd5 Nxg5 21. Bxg5 Qxg5+ 22. Kh1 c6 23. Bb3 Qf4 24. Qxf4 Bxf4 25. Rad1 Bf5 26. Kg2 g5 27. f3 Kg7 28. Ne4 g4 29. hxg4 hxg4 30. Ng3 gxf3+ 31. Kxf3 Bxg3 32. Kxg3 Kf6 33. Kf4 Rh8 34. Rxe8 Rxe8 35. Rd2 Re4+ 36. Kf3 Rh4 37. c3 Rh3+ 38. Kf4 Rh4+ 39. Kg3 Rg4+ 40. Kf3 Rg1 41. Rf2 Re1 42. Kf4 Re4+ 43. Kg3 Re3+ 44. Rf3 Re2 45. Rf2 Re3+ 46. Kg2 Kg6 47. Bxf7+ Kxf7 48. Rxf5+ Ke6 49. Rf2 b5 50. Kf1 Rh3 51. Ke2 a5 52. Kd2 a4 53. Kc2 Kd5 54. b3 a3 55. Rf5+ Kd6 56. Rf6+ Kd5 57. Rf2 Rg3 58. Kd2 Rh3 59. Re2 Kd6 60. Kc2 Rh1 61. Kd3 Rb1 62. c4 b4 63. c5+ Kd7 64. Kc4 Rb2 65. Re1 Rxa2 66. Kxb4 Rd2 67. Kxa3 Rxd4 68. b4 Rh4 69. Ka4 Kc7 70. Re7+ Kb8 71. Ka5 Rh6 72. Kb6 Kc8 73. Rc7+ Kb8 74. Rxc6"
+  },
+  "puzzle": {
+    "id": "cp_tactics_1",
+    "rating": 1580,
+    "solution": ["c8b8", "c6c7", "b8a8"],
+    "themes": ["endgame", "crushing", "short"]
+  }
+}

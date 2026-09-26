@@ -1,0 +1,7 @@
+{
+  "id": "chess",
+  "title": "Chess Puzzles",
+  "description": "Daily chess puzzles in Lua with offline caching",
+  "icon": "Blocks",
+  "sleepScreen": true
+}

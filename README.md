@@ -1,18 +1,18 @@
-# CrossPoint Reader
+# CrossPoint Reader (ESP32-S3 Fork)
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
 
-CrossPoint is open-source e-reader firmware - community-built, fully hackable, free forever. It's maintained by a growing community of developers and readers who believe your device should do what you want - not what a manufacturer decided for you.
+CrossPoint is open-source e-reader firmware - community-built, fully hackable, free forever.
 
-### Now running on:
-- **ESP32C3-based** Xteink X4 and X3.
-- **ESP32S3-based** Xteink X4Pro and X4Classic, Seeed reTerminal Sticky, M5PaperMono
+> [!NOTE]
+> **ESP32-S3 Fork**: This fork specifically targets high-capability **ESP32-S3** devices (such as the **Xteink X4 Pro** and **X4 Classic**, Seeed reTerminal Sticky, and M5PaperMono). By leveraging the S3's dual-core Xtensa architecture, capacitive touch support, and generous PSRAM (e.g. 8MB on X4 Pro), this fork expands beyond standard e-reading to include an extensible **modular apps and plugins framework**, games (such as Lichess daily chess puzzles), and richer utilities while keeping reader performance fast and reliable.
 
-Check [our Devices page](https://crosspointreader.com/devices) for the full list.
+### Target Devices:
+- **ESP32S3-based**: Xteink X4Pro, Xteink X4Classic, Seeed reTerminal Sticky, M5PaperMono
+
+Check [our Devices page](https://crosspointreader.com/devices) for hardware details.
 
 ![CrossPoint Reader running on Xteink device](./docs/images/cover.jpg)
-
-> If you're planning to buy an Xteink device, consider purchasing an **X3/X4 Developer Edition** through https://crosspointreader.com. CrossPoint receives a small share of each sale, helping fund development costs.
 
 ## What can CrossPoint do?
 
@@ -45,6 +45,17 @@ Check [our Devices page](https://crosspointreader.com/devices) for the full list
   - OTA update checks and installs from GitHub releases
 
 - **Customization**: night mode, multiple themes (Classic, Lyra, Lyra Extended, RoundedRaff), sleep screen modes including transparent overlays, front/side button remapping, status bar controls, power-button behavior, refresh cadence, and more.
+
+- **Modular Apps & Lua Ecosystem**:
+  - **Dynamic Lua 5.4 Subsystem**: Run community-built applications directly from the SD card (`/apps/<app_id>/`) without reflashing firmware. All Lua heap memory is safely isolated in 8MB PSRAM with recursive mutex thread safety across FreeRTOS tasks.
+  - **On-Device App Store**: Browse, install, and update applications over Wi-Fi directly on the device from GitHub repositories (defaults to [`chazmus/crosspoint-apps`](https://github.com/Chazmus/crosspoint-apps) with custom source support).
+  - **Modular Architecture**: Built-in package loader supports multi-file applications with standard `require()` and directory submodules.
+  - **Hardware Serial Logging & Debugging**: Direct USB CDC streaming via `log.debug`, `log.info`, `log.warn`, and `log.error`, complete with full Lua stack tracebacks on errors.
+  - **Auto-Orientation Protocol**: Apps can declare Portrait ($480 \times 800$) or Landscape ($800 \times 480$); the firmware automatically switches orientation and rotates drawing/touch coordinates, cleanly restoring the reader OS upon exit.
+  - **Scoped On-Demand Wi-Fi**: Apps can connect to Wi-Fi on-demand via `crosspoint.withWifi` with modal connection UI and guaranteed automatic battery-safe disconnection upon completion, error, or sleep.
+  - **Sleep Screen Integration**: Designate any supported app as your persistent low-power sleep screen.
+  - **Desktop Simulator & SDK**: Develop, visually align, profile, and test apps on your PC before copying to hardware via the [CrossPoint Apps SDK](https://github.com/Chazmus/crosspoint-apps/tree/main/sdk).
+  - **C++ Native Apps**: High-performance compiled activities isolated under [`src/apps/`](src/apps/) with static registration via [`AppRegistry`](src/apps/AppRegistry.h).
 
 - **Localization**: 34 UI languages and counting, including CJK font fallback and RTL support.
 
