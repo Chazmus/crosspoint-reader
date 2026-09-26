@@ -227,11 +227,12 @@ bool AppInstallerActivity::handleButtons() {
 
 void AppInstallerActivity::onBackButton() { finish(); }
 
+const char* AppInstallerActivity::headerTitle() const { return "App Store"; }
+
 void AppInstallerActivity::buildScreen(UiScreen& screen) {
   const auto& metrics = UITheme::getInstance().getMetrics();
   screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
                                                 static_cast<int16_t>(metrics.buttonHintsHeight), 0});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
   buildTabBar(screen);
 
   if (rowItems_.empty()) {
@@ -264,9 +265,8 @@ void AppInstallerActivity::activateIndex(const int index) {
   } else {
     const auto& sources = APP_SOURCE_STORE.getSources();
     if (index == static_cast<int>(sources.size())) {
-      startActivityForResult(std::make_unique<KeyboardEntryActivity>(renderer, mappedInput,
-                                                                    "GitHub Repo (owner/repo):", "", 64,
-                                                                    InputType::Text),
+      startActivityForResult(std::make_unique<KeyboardEntryActivity>(
+                                 renderer, mappedInput, "GitHub Repo (owner/repo):", "", 64, InputType::Text),
                              [this](const ActivityResult& res) { onAddSourceResult(res); });
     } else if (index >= 0 && index < static_cast<int>(sources.size())) {
       APP_SOURCE_STORE.toggleSource(static_cast<size_t>(index));
@@ -341,16 +341,15 @@ void AppInstallerActivity::startAppInstall(const CatalogApp& app) {
 void AppInstallerActivity::promptAppUninstall(const CatalogApp& app) {
   std::string heading = "Uninstall " + app.name + "?";
   std::string body = "Remove /apps/" + app.id + " from SD card";
-  startActivityForResult(
-      std::make_unique<ConfirmationActivity>(renderer, mappedInput, heading, body),
-      [this, appId = app.id](const ActivityResult& result) {
-        if (!result.isCancelled) {
-          std::string err;
-          AppInstaller::uninstallApp(appId, err);
-          rebuildRowItems();
-          requestUpdate();
-        }
-      });
+  startActivityForResult(std::make_unique<ConfirmationActivity>(renderer, mappedInput, heading, body),
+                         [this, appId = app.id](const ActivityResult& result) {
+                           if (!result.isCancelled) {
+                             std::string err;
+                             AppInstaller::uninstallApp(appId, err);
+                             rebuildRowItems();
+                             requestUpdate();
+                           }
+                         });
 }
 
 void AppInstallerActivity::promptDeleteSource(const size_t sourceIndex) {
@@ -358,15 +357,14 @@ void AppInstallerActivity::promptDeleteSource(const size_t sourceIndex) {
   if (!src) return;
   std::string heading = "Remove Repository?";
   std::string body = src->name + " (" + src->repo + ")";
-  startActivityForResult(
-      std::make_unique<ConfirmationActivity>(renderer, mappedInput, heading, body),
-      [this, sourceIndex](const ActivityResult& result) {
-        if (!result.isCancelled) {
-          APP_SOURCE_STORE.removeSource(sourceIndex);
-          rebuildRowItems();
-          requestUpdate();
-        }
-      });
+  startActivityForResult(std::make_unique<ConfirmationActivity>(renderer, mappedInput, heading, body),
+                         [this, sourceIndex](const ActivityResult& result) {
+                           if (!result.isCancelled) {
+                             APP_SOURCE_STORE.removeSource(sourceIndex);
+                             rebuildRowItems();
+                             requestUpdate();
+                           }
+                         });
 }
 
 void AppInstallerActivity::onAddSourceResult(const ActivityResult& result) {
