@@ -4,6 +4,7 @@
 #include <string>
 
 #include "LuaBindings.h"
+#include "LuaUiHost.h"
 #include "activities/Activity.h"
 
 struct AppDescriptor;
@@ -17,6 +18,7 @@ class LuaAppActivity final : public Activity {
   GfxRenderer::Orientation origOrientation_ = GfxRenderer::Orientation::Portrait;
   lua_State* L_ = nullptr;
   mutable std::recursive_mutex luaMutex_;
+  std::unique_ptr<lua_host::LuaUiHost> uiHost_;
   lua_host::HostContext hostCtx_;
   bool hasError_ = false;
   std::string errorMessage_;
