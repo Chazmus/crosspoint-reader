@@ -186,7 +186,11 @@ bool LuaUiHost::dispatchTouch(int x, int y, lua_State* L) {
             } else {
               lua_pushinteger(L, hit.value != 0 ? hit.value : cb.value);
             }
-            lua_pcall(L, numArgs, 0, errIdx);
+            if (numArgs >= 0) {
+              lua_pcall(L, numArgs, 0, errIdx);
+            } else {
+              lua_pop(L, 1);
+            }
           } else {
             lua_pop(L, 1);
           }
