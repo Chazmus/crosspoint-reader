@@ -1552,6 +1552,996 @@ static int l_ui_drawToast(lua_State* L) {
   return 0;
 }
 
+static int l_ui_drawSlider(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 200, h = 32;
+  int value = 0;
+  int minVal = 0;
+  int maxVal = 100;
+  bool enabled = true;
+  int radius = tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isnumber(L, -1)) value = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "min");
+    if (lua_isnumber(L, -1)) minVal = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "max");
+    if (lua_isnumber(L, -1)) maxVal = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  if (maxVal <= minVal) maxVal = minVal + 1;
+  if (value < minVal) value = minVal;
+  if (value > maxVal) value = maxVal;
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onChange");
+    if (!lua_isfunction(L, -1)) {
+      lua_pop(L, 1);
+      lua_getfield(L, 1, "onClick");
+    }
+    if (lua_isfunction(L, -1)) {
+      int pad = 8;
+      auto invoker = [x, w, minVal, maxVal, pad](lua_State* state, int touchX, int /*touchY*/, int16_t /*val*/) -> int {
+        int trackW = w - 2 * pad;
+        if (trackW <= 0) trackW = 1;
+        int relX = touchX - (x + pad);
+        if (relX < 0) relX = 0;
+        if (relX > trackW) relX = trackW;
+        int newVal = minVal + static_cast<int>((static_cast<int64_t>(relX) * (maxVal - minVal)) / trackW);
+        lua_pushinteger(state, newVal);
+        return 1;
+      };
+      act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), 0, "slider");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::SliderProps sp;
+  sp.value = value - minVal;
+  sp.max = maxVal - minVal;
+  sp.action = act;
+  sp.enabled = enabled;
+  sp.radius = static_cast<uint8_t>(radius);
+  sp.horizontalPadding = 8;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::slider(*frame, rect, sp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawCapsuleSlider(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 200, h = 36;
+  int value = 0;
+  int minVal = 0;
+  int maxVal = 100;
+  bool enabled = true;
+  int radius = tokens.capsuleRadius > 0 ? tokens.capsuleRadius : tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isnumber(L, -1)) value = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "min");
+    if (lua_isnumber(L, -1)) minVal = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "max");
+    if (lua_isnumber(L, -1)) maxVal = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  if (maxVal <= minVal) maxVal = minVal + 1;
+  if (value < minVal) value = minVal;
+  if (value > maxVal) value = maxVal;
+
+  const int stroke = 2;
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onChange");
+    if (!lua_isfunction(L, -1)) {
+      lua_pop(L, 1);
+      lua_getfield(L, 1, "onClick");
+    }
+    if (lua_isfunction(L, -1)) {
+      auto invoker = [x, w, h, minVal, maxVal, stroke](lua_State* state, int touchX, int /*touchY*/, int16_t /*val*/) -> int {
+        int innerH = h - 2 * stroke;
+        int cap = innerH / 2;
+        int travel = (w - 2 * stroke) - 2 * cap;
+        if (travel <= 0) travel = 1;
+        int relX = touchX - (x + stroke + cap);
+        if (relX < 0) relX = 0;
+        if (relX > travel) relX = travel;
+        int newVal = minVal + static_cast<int>((static_cast<int64_t>(relX) * (maxVal - minVal)) / travel);
+        lua_pushinteger(state, newVal);
+        return 1;
+      };
+      act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), 0, "capsuleSlider");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::CapsuleSliderProps cp;
+  cp.value = value - minVal;
+  cp.max = maxVal - minVal;
+  cp.action = act;
+  cp.stroke = stroke;
+  cp.radius = static_cast<uint8_t>(radius);
+  cp.enabled = enabled;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::capsuleSlider(*frame, rect, cp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawProgressBar(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 200, h = 12;
+  int value = 0;
+  int maxVal = 100;
+  int radius = tokens.controlRadius;
+  std::string variant = "solid";
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isnumber(L, -1)) value = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "max");
+    if (lua_isnumber(L, -1)) maxVal = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "variant");
+    if (lua_isstring(L, -1)) variant = lua_tostring(L, -1);
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ProgressBarProps pbp;
+  pbp.value = value;
+  pbp.max = maxVal;
+  pbp.radius = static_cast<uint8_t>(radius);
+  pbp.border = freeink::ui::Paint::solid(freeink::ui::Color::Black);
+  pbp.borderWidth = 1;
+  pbp.track = freeink::ui::Paint::solid(freeink::ui::Color::White);
+  if (variant == "dither") {
+    pbp.fill = freeink::ui::Paint::dither(freeink::ui::Color::DarkGray);
+  } else {
+    pbp.fill = freeink::ui::Paint::solid(freeink::ui::Color::Black);
+  }
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::progressBar(*frame, rect, pbp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawCheckbox(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 160, h = 36;
+  std::string label;
+  bool checked = false;
+  bool enabled = true;
+  int radius = tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "label");
+    if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "checked");
+    if (lua_isboolean(L, -1)) checked = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onToggle");
+    if (!lua_isfunction(L, -1)) {
+      lua_pop(L, 1);
+      lua_getfield(L, 1, "onClick");
+    }
+    if (lua_isfunction(L, -1)) {
+      auto invoker = [checked](lua_State* state, int /*x*/, int /*y*/, int16_t /*val*/) -> int {
+        lua_pushboolean(state, !checked);
+        return 1;
+      };
+      act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), checked ? 0 : 1, "checkbox");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::CheckboxProps cp;
+  cp.label = label.empty() ? nullptr : label.c_str();
+  cp.checked = checked;
+  cp.enabled = enabled;
+  cp.action = act;
+  cp.radius = static_cast<uint8_t>(radius);
+  cp.text.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::checkbox(*frame, rect, cp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawSettingRow(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 300, h = 48;
+  std::string label;
+  std::string subtitle;
+  std::string value;
+  bool drawChevron = false;
+  bool enabled = true;
+  int radius = tokens.listRowRadius > 0 ? tokens.listRowRadius : tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "label");
+    if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "subtitle");
+    if (lua_isstring(L, -1)) subtitle = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isstring(L, -1)) value = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "drawChevron");
+    if (lua_isboolean(L, -1)) drawChevron = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onClick");
+    if (lua_isfunction(L, -1)) {
+      act = ctx->uiHost->registerCallback(L, lua_gettop(L), 0, "settingRow");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::SettingRowProps srp;
+  srp.label = label.empty() ? nullptr : label.c_str();
+  srp.subtitle = subtitle.empty() ? nullptr : subtitle.c_str();
+  srp.value = value.empty() ? nullptr : value.c_str();
+  srp.drawChevron = drawChevron;
+  srp.enabled = enabled;
+  srp.action = act;
+  srp.radius = static_cast<uint8_t>(radius);
+  srp.labelText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  srp.subtitleText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
+  srp.valueText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::settingRow(*frame, rect, srp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawToggleRow(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 300, h = 48;
+  std::string label;
+  std::string subtitle;
+  bool checked = false;
+  bool enabled = true;
+  int radius = tokens.listRowRadius > 0 ? tokens.listRowRadius : tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "label");
+    if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "subtitle");
+    if (lua_isstring(L, -1)) subtitle = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "checked");
+    if (lua_isboolean(L, -1)) checked = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onToggle");
+    if (!lua_isfunction(L, -1)) {
+      lua_pop(L, 1);
+      lua_getfield(L, 1, "onClick");
+    }
+    if (lua_isfunction(L, -1)) {
+      auto invoker = [checked](lua_State* state, int /*x*/, int /*y*/, int16_t /*val*/) -> int {
+        lua_pushboolean(state, !checked);
+        return 1;
+      };
+      act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), checked ? 0 : 1, "toggleRow");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ToggleRowProps trp;
+  trp.row.label = label.empty() ? nullptr : label.c_str();
+  trp.row.subtitle = subtitle.empty() ? nullptr : subtitle.c_str();
+  trp.row.enabled = enabled;
+  trp.row.radius = static_cast<uint8_t>(radius);
+  trp.row.labelText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  trp.row.subtitleText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
+  trp.checked = checked;
+  trp.toggleAction = act;
+  trp.radius = static_cast<uint8_t>(tokens.controlRadius);
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::toggleRow(*frame, rect, trp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawStepperRow(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 300, h = 48;
+  std::string label;
+  std::string subtitle;
+  std::string value;
+  bool enabled = true;
+  int radius = tokens.listRowRadius > 0 ? tokens.listRowRadius : tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "label");
+    if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "subtitle");
+    if (lua_isstring(L, -1)) subtitle = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isstring(L, -1)) {
+      value = lua_tostring(L, -1);
+    } else if (lua_isnumber(L, -1)) {
+      value = std::to_string(lua_tointeger(L, -1));
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "enabled");
+    if (lua_isboolean(L, -1)) enabled = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId decAct = freeink::ui::NO_ACTION;
+  freeink::ui::ActionId incAct = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onDecrement");
+    if (lua_isfunction(L, -1)) {
+      decAct = ctx->uiHost->registerCallback(L, lua_gettop(L), -1, "stepperDec");
+    }
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "onIncrement");
+    if (lua_isfunction(L, -1)) {
+      incAct = ctx->uiHost->registerCallback(L, lua_gettop(L), 1, "stepperInc");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::StepperRowProps srp;
+  srp.row.label = label.empty() ? nullptr : label.c_str();
+  srp.row.subtitle = subtitle.empty() ? nullptr : subtitle.c_str();
+  srp.row.enabled = enabled;
+  srp.row.radius = static_cast<uint8_t>(radius);
+  srp.row.labelText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  srp.row.subtitleText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
+  srp.row.valueText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  srp.value = value.c_str();
+  srp.decrement = decAct;
+  srp.increment = incAct;
+  srp.buttonRadius = static_cast<uint8_t>(tokens.controlRadius);
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::stepperRow(*frame, rect, srp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawRadioGroup(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 300, h = 40;
+  int selectedValue = 1;
+  int gap = 4;
+  std::vector<std::string> labels;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "selectedIndex");
+    if (lua_isnumber(L, -1)) selectedValue = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "gap");
+    if (lua_isnumber(L, -1)) gap = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "options");
+    if (lua_istable(L, -1)) {
+      const int count = static_cast<int>(lua_rawlen(L, -1));
+      for (int i = 1; i <= count; ++i) {
+        lua_rawgeti(L, -1, i);
+        if (lua_isstring(L, -1)) {
+          labels.push_back(lua_tostring(L, -1));
+        } else if (lua_istable(L, -1)) {
+          lua_getfield(L, -1, "label");
+          labels.push_back(lua_isstring(L, -1) ? lua_tostring(L, -1) : "");
+          lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+      }
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onSelect");
+    if (lua_isfunction(L, -1)) {
+      act = ctx->uiHost->registerCallback(L, lua_gettop(L), 0, "radioGroup");
+    }
+    lua_pop(L, 1);
+  }
+
+  std::vector<freeink::ui::RadioOption> opts;
+  for (size_t i = 0; i < labels.size(); ++i) {
+    freeink::ui::RadioOption ro;
+    ro.label = labels[i].c_str();
+    ro.value = static_cast<int16_t>(i + 1);
+    ro.enabled = true;
+    opts.push_back(ro);
+  }
+
+  freeink::ui::RadioGroupProps rgp;
+  rgp.options = opts.data();
+  rgp.count = static_cast<uint8_t>(opts.size());
+  rgp.selectedValue = static_cast<int16_t>(selectedValue);
+  rgp.action = act;
+  rgp.gap = static_cast<int16_t>(gap);
+  rgp.radius = static_cast<uint8_t>(tokens.controlRadius);
+  rgp.text.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::radioGroup(*frame, rect, rgp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawTable(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+
+  int x = 0, y = 0, w = 400, h = 200;
+  int rows = 0;
+  int cols = 0;
+  int rowHeight = 28;
+  int padding = 6;
+  bool headerRow = true;
+  std::vector<std::string> cellStrings;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "rows");
+    if (lua_isnumber(L, -1)) rows = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "cols");
+    if (lua_isnumber(L, -1)) cols = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "rowHeight");
+    if (lua_isnumber(L, -1)) rowHeight = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "padding");
+    if (lua_isnumber(L, -1)) padding = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "headerRow");
+    if (lua_isboolean(L, -1)) headerRow = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "cells");
+    if (lua_istable(L, -1)) {
+      const int count = static_cast<int>(lua_rawlen(L, -1));
+      for (int i = 1; i <= count; ++i) {
+        lua_rawgeti(L, -1, i);
+        if (lua_isstring(L, -1)) {
+          cellStrings.push_back(lua_tostring(L, -1));
+        } else if (lua_istable(L, -1)) {
+          const int subCount = static_cast<int>(lua_rawlen(L, -1));
+          if (cols == 0) cols = subCount;
+          for (int j = 1; j <= subCount; ++j) {
+            lua_rawgeti(L, -1, j);
+            cellStrings.push_back(lua_isstring(L, -1) ? lua_tostring(L, -1) : "");
+            lua_pop(L, 1);
+          }
+        }
+        lua_pop(L, 1);
+      }
+    }
+    lua_pop(L, 1);
+  }
+
+  if (cols <= 0) cols = 1;
+  if (rows <= 0) rows = static_cast<int>(cellStrings.size() / cols);
+  while (cellStrings.size() < static_cast<size_t>(rows * cols)) {
+    cellStrings.push_back("");
+  }
+
+  std::vector<const char*> cellPtrs;
+  cellPtrs.reserve(cellStrings.size());
+  for (const auto& s : cellStrings) {
+    cellPtrs.push_back(s.c_str());
+  }
+
+  freeink::ui::TableProps tp;
+  tp.cells = cellPtrs.data();
+  tp.rows = static_cast<uint8_t>(rows);
+  tp.cols = static_cast<uint8_t>(cols);
+  tp.rowHeight = static_cast<int16_t>(rowHeight);
+  tp.padding = static_cast<int16_t>(padding);
+  tp.headerRow = headerRow;
+  tp.text.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  tp.grid = freeink::ui::Paint::solid(freeink::ui::Color::Black);
+  tp.gridWidth = 1;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(rowHeight * rows)};
+  freeink::ui::table(*frame, rect, tp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, rowHeight * rows);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawMetricCard(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+  const auto& tokens = ctx->uiHost->getTokens();
+
+  int x = 0, y = 0, w = 180, h = 100;
+  std::string label;
+  std::string value;
+  std::string unit;
+  std::string caption;
+  bool centered = true;
+  int radius = tokens.listRowRadius > 0 ? tokens.listRowRadius : tokens.controlRadius;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "h");
+    if (lua_isnumber(L, -1)) h = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "label");
+    if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "value");
+    if (lua_isstring(L, -1)) value = lua_tostring(L, -1);
+    else if (lua_isnumber(L, -1)) value = std::to_string(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "unit");
+    if (lua_isstring(L, -1)) unit = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "caption");
+    if (lua_isstring(L, -1)) caption = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "centered");
+    if (lua_isboolean(L, -1)) centered = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "radius");
+    if (lua_isnumber(L, -1)) radius = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "onClick");
+    if (lua_isfunction(L, -1)) {
+      act = ctx->uiHost->registerCallback(L, lua_gettop(L), 0, "metricCard");
+    }
+    lua_pop(L, 1);
+  }
+
+  freeink::ui::MetricCardProps mcp;
+  mcp.label = label.empty() ? nullptr : label.c_str();
+  mcp.value = value.empty() ? nullptr : value.c_str();
+  mcp.unit = unit.empty() ? nullptr : unit.c_str();
+  mcp.caption = caption.empty() ? nullptr : caption.c_str();
+  mcp.centered = centered;
+  mcp.action = act;
+  mcp.labelText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
+  mcp.valueText.font = freeink::ui::GfxRendererTarget::FONT_TITLE;
+  mcp.captionText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::metricCard(*frame, rect, mcp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
+static int l_ui_drawContextMenu(lua_State* L) {
+  auto* ctx = getContext(L);
+  if (!ctx || !ctx->uiHost || !ctx->uiHost->currentFrame()) {
+    lua_newtable(L);
+    return 1;
+  }
+  auto* frame = ctx->uiHost->currentFrame();
+
+  int x = 40, y = 100, w = 240, h = 0;
+  std::string title;
+  bool dimBackground = true;
+  std::vector<std::string> itemLabels;
+  std::vector<freeink::ui::DialogOption> options;
+
+  if (lua_istable(L, 1)) {
+    lua_getfield(L, 1, "x");
+    if (lua_isnumber(L, -1)) x = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "y");
+    if (lua_isnumber(L, -1)) y = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "w");
+    if (lua_isnumber(L, -1)) w = static_cast<int>(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "title");
+    if (lua_isstring(L, -1)) title = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, 1, "dimBackground");
+    if (lua_isboolean(L, -1)) dimBackground = lua_toboolean(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "items");
+    if (lua_istable(L, -1)) {
+      const int count = static_cast<int>(lua_rawlen(L, -1));
+      for (int i = 1; i <= count; ++i) {
+        lua_rawgeti(L, -1, i);
+        if (lua_istable(L, -1)) {
+          lua_getfield(L, -1, "label");
+          std::string l = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+          lua_pop(L, 1);
+          itemLabels.push_back(l);
+
+          freeink::ui::ActionId act = freeink::ui::NO_ACTION;
+          lua_getfield(L, -1, "onClick");
+          if (lua_isfunction(L, -1)) {
+            act = ctx->uiHost->registerCallback(L, lua_gettop(L), static_cast<int16_t>(i), "contextItem");
+          }
+          lua_pop(L, 1);
+
+          freeink::ui::DialogOption opt;
+          opt.label = itemLabels.back().c_str();
+          opt.action = act;
+          opt.value = static_cast<int16_t>(i);
+          options.push_back(opt);
+        }
+        lua_pop(L, 1);
+      }
+    }
+    lua_pop(L, 1);
+  }
+
+  const int rowH = 40;
+  const int titleH = title.empty() ? 0 : 30;
+  h = 20 + titleH + static_cast<int>(options.size()) * (rowH + 2);
+
+  freeink::ui::ContextMenuProps cmp;
+  cmp.title = title.empty() ? nullptr : title.c_str();
+  cmp.options = options.data();
+  cmp.optionCount = static_cast<uint8_t>(options.size());
+  cmp.dimBackground = dimBackground;
+  cmp.titleText.font = freeink::ui::GfxRendererTarget::FONT_TITLE;
+  cmp.itemText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
+  cmp.rowHeight = static_cast<int16_t>(rowH);
+
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::contextMenu(*frame, rect, cmp);
+
+  lua_newtable(L);
+  lua_pushinteger(L, x);
+  lua_setfield(L, -2, "x");
+  lua_pushinteger(L, y);
+  lua_setfield(L, -2, "y");
+  lua_pushinteger(L, w);
+  lua_setfield(L, -2, "w");
+  lua_pushinteger(L, h);
+  lua_setfield(L, -2, "h");
+  return 1;
+}
+
 void registerModule(lua_State* L, const char* name, const luaL_Reg* funcs, HostContext* ctx) {
   lua_newtable(L);
   for (; funcs->name != nullptr; funcs++) {
@@ -1711,7 +2701,7 @@ void registerBindings(lua_State* L, HostContext* ctx) {
   };
   registerModule(L, "crosspoint", crosspointFuncs, ctx);
 
-  // Register ui functions
+  // Register ui functions (Phase 1 & 2)
   static const luaL_Reg uiFuncs[] = {
       {"getTheme", l_ui_getTheme},
       {"setTheme", l_ui_setTheme},
@@ -1723,6 +2713,17 @@ void registerBindings(lua_State* L, HostContext* ctx) {
       {"drawToggle", l_ui_drawToggle},
       {"drawDialog", l_ui_drawDialog},
       {"drawToast", l_ui_drawToast},
+      {"drawSlider", l_ui_drawSlider},
+      {"drawCapsuleSlider", l_ui_drawCapsuleSlider},
+      {"drawProgressBar", l_ui_drawProgressBar},
+      {"drawCheckbox", l_ui_drawCheckbox},
+      {"drawSettingRow", l_ui_drawSettingRow},
+      {"drawToggleRow", l_ui_drawToggleRow},
+      {"drawStepperRow", l_ui_drawStepperRow},
+      {"drawRadioGroup", l_ui_drawRadioGroup},
+      {"drawTable", l_ui_drawTable},
+      {"drawMetricCard", l_ui_drawMetricCard},
+      {"drawContextMenu", l_ui_drawContextMenu},
       {nullptr, nullptr},
   };
   registerModule(L, "ui", uiFuncs, ctx);
