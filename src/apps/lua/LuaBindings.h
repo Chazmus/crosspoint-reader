@@ -15,11 +15,14 @@ class LuaAppActivity;
 
 namespace lua_host {
 
+class LuaUiHost;
+
 struct HostContext {
   GfxRenderer* renderer = nullptr;
   MappedInputManager* input = nullptr;
   Activity* activity = nullptr;
   LuaAppActivity* luaApp = nullptr;
+  LuaUiHost* uiHost = nullptr;
   std::string appDir;
 
   std::string resolvePath(const char* path) const {

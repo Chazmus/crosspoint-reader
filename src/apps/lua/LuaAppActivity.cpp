@@ -23,6 +23,9 @@ LuaAppActivity::LuaAppActivity(std::string scriptPath, std::string appDir, std::
 
 LuaAppActivity::~LuaAppActivity() {
   std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+  if (uiHost_) {
+    uiHost_->detachLua();
+  }
   if (L_) {
     if (wifiCallbackRef_ != LUA_NOREF) {
       luaL_unref(L_, LUA_REGISTRYINDEX, wifiCallbackRef_);
@@ -163,11 +166,13 @@ void LuaAppActivity::onEnter() {
   }
 
   luaL_openlibs(L_);
-
+ 
+  uiHost_ = std::make_unique<lua_host::LuaUiHost>(renderer);
   hostCtx_.renderer = &renderer;
   hostCtx_.input = &mappedInput;
   hostCtx_.activity = this;
   hostCtx_.luaApp = this;
+  hostCtx_.uiHost = uiHost_.get();
   hostCtx_.appDir = appDir_;
   lua_host::registerBindings(L_, &hostCtx_);
 
@@ -257,7 +262,16 @@ void LuaAppActivity::loop() {
 
   int tapX = 0, tapY = 0;
   if (mappedInput.wasScreenTapped(tapX, tapY)) {
-    callLuaFunction("onTouch", tapX, tapY);
+    bool handled = false;
+    {
+      std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+      if (L_ && uiHost_) {
+        handled = uiHost_->dispatchTouch(tapX, tapY, L_);
+      }
+    }
+    if (!handled) {
+      callLuaFunction("onTouch", tapX, tapY);
+    }
   }
 
   if (mappedInput.wasScreenTouchReleased()) {
@@ -309,13 +323,28 @@ void LuaAppActivity::render(RenderLock&&) {
     return;
   }
 
+  {
+    std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+    if (uiHost_) {
+      uiHost_->beginFrame(L_);
+    }
+  }
   callLuaFunction("onDraw");
+  {
+    std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+    if (uiHost_) {
+      uiHost_->endFrame();
+    }
+  }
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 }
 
 void LuaAppActivity::onExit() {
   {
     std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+    if (uiHost_) {
+      uiHost_->detachLua();
+    }
     if (L_) {
       if (wifiCallbackRef_ != LUA_NOREF) {
         luaL_unref(L_, LUA_REGISTRYINDEX, wifiCallbackRef_);
@@ -442,13 +471,16 @@ bool LuaAppActivity::renderSleepScreen(const AppDescriptor& desc, GfxRenderer& r
 
   luaL_openlibs(L);
 
+  lua_host::LuaUiHost uiHost(renderer);
   lua_host::HostContext ctx;
   ctx.renderer = &renderer;
+  ctx.uiHost = &uiHost;
   ctx.appDir = desc.appDir;
   lua_host::registerBindings(L, &ctx);
 
   HalFile file;
   if (!Storage.openFileForRead("LUA", desc.scriptPath, file)) {
+    uiHost.detachLua();
     lua_close(L);
     renderer.setOrientation(origOrient);
     return false;
@@ -461,6 +493,7 @@ bool LuaAppActivity::renderSleepScreen(const AppDescriptor& desc, GfxRenderer& r
 
   if (luaL_loadbuffer(L, scriptContent.data(), scriptContent.size(), desc.scriptPath.c_str()) != LUA_OK ||
       lua_pcall(L, 0, 0, 0) != LUA_OK) {
+    uiHost.detachLua();
     lua_close(L);
     renderer.setOrientation(origOrient);
     return false;
@@ -478,16 +511,21 @@ bool LuaAppActivity::renderSleepScreen(const AppDescriptor& desc, GfxRenderer& r
 
   lua_getglobal(L, "onSleepDraw");
   if (!lua_isfunction(L, -1)) {
+    uiHost.detachLua();
     lua_close(L);
     renderer.setOrientation(origOrient);
     return false;
   }
 
+  uiHost.beginFrame(L);
   if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+    uiHost.detachLua();
     lua_close(L);
     renderer.setOrientation(origOrient);
     return false;
   }
+  uiHost.endFrame();
+  uiHost.detachLua();
 
   lua_close(L);
   renderer.setOrientation(origOrient);
