@@ -350,6 +350,14 @@ void LuaAppActivity::onExit() {
         luaL_unref(L_, LUA_REGISTRYINDEX, wifiCallbackRef_);
         wifiCallbackRef_ = LUA_NOREF;
       }
+      if (promptConfirmRef_ != LUA_NOREF) {
+        luaL_unref(L_, LUA_REGISTRYINDEX, promptConfirmRef_);
+        promptConfirmRef_ = LUA_NOREF;
+      }
+      if (promptCancelRef_ != LUA_NOREF) {
+        luaL_unref(L_, LUA_REGISTRYINDEX, promptCancelRef_);
+        promptCancelRef_ = LUA_NOREF;
+      }
       callLuaFunction("onExit");
       lua_close(L_);
       L_ = nullptr;
@@ -440,6 +448,78 @@ void LuaAppActivity::onWifiSelectionComplete(const bool success) {
   // If withWifi requested automatic disconnect, or connection failed/cancelled, disconnect now
   if ((autoDisconnect || !success) && wifiStartedByUs_) {
     disconnectWifi();
+  }
+}
+
+void LuaAppActivity::promptText(const std::string& title, const std::string& initialText,
+                                const size_t maxLength, const InputType inputType,
+                                const int confirmRef, const int cancelRef) {
+  promptConfirmRef_ = confirmRef;
+  promptCancelRef_ = cancelRef;
+
+  // Temporarily switch to Portrait for standard CrossPoint keyboard layout
+  renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+
+  startActivityForResult(
+      std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, title, initialText, maxLength, inputType),
+      [this](const ActivityResult& res) { onPromptTextComplete(res); });
+}
+
+void LuaAppActivity::onPromptTextComplete(const ActivityResult& res) {
+  // Restore Lua app's declared orientation
+  if (orientationStr_ == "landscape" || orientationStr_ == "landscape_cw") {
+    renderer.setOrientation(GfxRenderer::Orientation::LandscapeClockwise);
+  } else if (orientationStr_ == "landscape_ccw") {
+    renderer.setOrientation(GfxRenderer::Orientation::LandscapeCounterClockwise);
+  } else if (orientationStr_ == "portrait_inverted") {
+    renderer.setOrientation(GfxRenderer::Orientation::PortraitInverted);
+  } else {
+    renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+  }
+
+  const int confirmRef = promptConfirmRef_;
+  const int cancelRef = promptCancelRef_;
+  promptConfirmRef_ = LUA_NOREF;
+  promptCancelRef_ = LUA_NOREF;
+
+  {
+    std::lock_guard<std::recursive_mutex> lock(luaMutex_);
+    if (L_) {
+      const int errIdx = lua_gettop(L_) + 1;
+      lua_pushcfunction(L_, luaTraceback);
+
+      if (res.isCancelled) {
+        if (cancelRef != LUA_NOREF) {
+          lua_rawgeti(L_, LUA_REGISTRYINDEX, cancelRef);
+          if (lua_isfunction(L_, -1)) {
+            if (lua_pcall(L_, 0, 0, errIdx) != LUA_OK) {
+              handleLuaError("promptCancelCallback");
+            }
+          } else {
+            lua_pop(L_, 1);
+          }
+        }
+      } else {
+        if (confirmRef != LUA_NOREF) {
+          std::string text = std::get<KeyboardResult>(res.data).text;
+          lua_rawgeti(L_, LUA_REGISTRYINDEX, confirmRef);
+          if (lua_isfunction(L_, -1)) {
+            lua_pushlstring(L_, text.data(), text.size());
+            if (lua_pcall(L_, 1, 0, errIdx) != LUA_OK) {
+              handleLuaError("promptConfirmCallback");
+            }
+          } else {
+            lua_pop(L_, 1);
+          }
+        }
+      }
+
+      if (confirmRef != LUA_NOREF) luaL_unref(L_, LUA_REGISTRYINDEX, confirmRef);
+      if (cancelRef != LUA_NOREF) luaL_unref(L_, LUA_REGISTRYINDEX, cancelRef);
+
+      lua_remove(L_, errIdx);
+      requestUpdate();
+    }
   }
 }
 

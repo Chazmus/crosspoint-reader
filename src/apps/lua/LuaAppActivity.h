@@ -6,6 +6,7 @@
 #include "LuaBindings.h"
 #include "LuaUiHost.h"
 #include "activities/Activity.h"
+#include "activities/util/KeyboardEntryActivity.h"
 
 struct AppDescriptor;
 
@@ -26,12 +27,15 @@ class LuaAppActivity final : public Activity {
   bool wifiStartedByUs_ = false;
   bool wifiAutoDisconnect_ = false;
   int wifiCallbackRef_ = LUA_NOREF;
+  int promptConfirmRef_ = LUA_NOREF;
+  int promptCancelRef_ = LUA_NOREF;
 
   void handleLuaError(const char* context);
   bool callLuaFunction(const char* funcName);
   bool callLuaFunction(const char* funcName, int arg1, int arg2);
   bool callLuaFunction(const char* funcName, float arg1);
   void onWifiSelectionComplete(bool success);
+  void onPromptTextComplete(const ActivityResult& res);
 
  public:
   LuaAppActivity(std::string scriptPath, std::string appDir, std::string appTitle, std::string orientationStr,
@@ -45,6 +49,9 @@ class LuaAppActivity final : public Activity {
 
   void connectWifi(int callbackRef, bool autoDisconnect = false);
   void disconnectWifi();
+
+  void promptText(const std::string& title, const std::string& initialText, size_t maxLength,
+                  InputType inputType, int confirmRef, int cancelRef);
 
   static std::unique_ptr<Activity> create(const AppDescriptor& desc, GfxRenderer& renderer, MappedInputManager& input);
   static bool renderSleepScreen(const AppDescriptor& desc, GfxRenderer& renderer);
