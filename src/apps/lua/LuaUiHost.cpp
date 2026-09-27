@@ -141,6 +141,12 @@ void LuaUiHost::endFrame() {
 
 freeink::ui::ActionId LuaUiHost::registerCallback(lua_State* L, int funcIndex, int16_t value,
                                                   const std::string& name) {
+  return registerCallbackWithInvoker(L, funcIndex, nullptr, value, name);
+}
+
+freeink::ui::ActionId LuaUiHost::registerCallbackWithInvoker(lua_State* L, int funcIndex,
+                                                            UiInvoker invoker, int16_t value,
+                                                            const std::string& name) {
   freeink::ui::ActionId action = nextActionId_++;
   int ref = -1;
   if (L && funcIndex != 0 && lua_isfunction(L, funcIndex)) {
@@ -148,7 +154,7 @@ freeink::ui::ActionId LuaUiHost::registerCallback(lua_State* L, int funcIndex, i
     ref = luaL_ref(L, LUA_REGISTRYINDEX);
     luaRefsToClean_.push_back(ref);
   }
-  callbacks_[action] = UiCallback{ref, name, value};
+  callbacks_[action] = UiCallback{ref, name, value, std::move(invoker)};
   return action;
 }
 
@@ -174,9 +180,13 @@ bool LuaUiHost::dispatchTouch(int x, int y, lua_State* L) {
           });
           lua_rawgeti(L, LUA_REGISTRYINDEX, cb.luaFuncRef);
           if (lua_isfunction(L, -1)) {
-            // Pass the action value (e.g. tab index or item index)
-            lua_pushinteger(L, hit.value != 0 ? hit.value : cb.value);
-            lua_pcall(L, 1, 0, errIdx);
+            int numArgs = 1;
+            if (cb.invoker) {
+              numArgs = cb.invoker(L, x, y, hit.value != 0 ? hit.value : cb.value);
+            } else {
+              lua_pushinteger(L, hit.value != 0 ? hit.value : cb.value);
+            }
+            lua_pcall(L, numArgs, 0, errIdx);
           } else {
             lua_pop(L, 1);
           }
