@@ -8,7 +8,7 @@ Powered by [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and [esptoo
 
 ## Features
 
-- **⚡ One-Click Web Installer**: Select your device (X4Pro, X3/X4, Sticky, X4C, M5PaperMono) and flash with a single click in Chromium browsers (Chrome, Edge, Brave, Opera).
+- **⚡ One-Click Web Installer**: Select your device (Xteink X4Pro, Seeed Sticky, X4C, M5PaperMono) and flash with a single click in Chromium browsers (Chrome, Edge, Brave, Opera).
 - **💾 Custom Binary Flasher**: Drag and drop any `.bin` file, set custom flash offset (default `0x10000`), choose baud rate, and flash with real-time progress.
 - **📟 Live Serial Monitor**: Stream debug logs, FreeInkUI logs, and Lua serial output in real time with hardware reset capabilities.
 - **📥 Direct Downloads**: Download prebuilt `.bin` firmware files directly for command-line `esptool.py` or SD-card OTA recovery.
@@ -31,7 +31,7 @@ Open `http://localhost:8000` in Google Chrome or Microsoft Edge.
 ## Automated Deployment (GitHub Actions)
 
 The GitHub Actions workflow (`.github/workflows/build-and-pages.yml`) handles:
-1. Compiling firmware for all target devices (`x4pro`, `default`, `sticky`, `x4c`, `papermono`) via PlatformIO.
+1. Compiling firmware for ESP32-S3 targets (`x4pro`, `sticky`, `x4c`, `papermono`) via PlatformIO.
 2. Collecting compiled `.bin` artifacts.
 3. Updating manifests and `version.json` with commit SHA, branch, and build timestamp.
 4. Packaging and deploying the site to **GitHub Pages** (`https://<username>.github.io/crosspoint-reader/`).

@@ -99,7 +99,7 @@ Flash custom builds directly from your browser without installing Python or comm
 
 1. Connect your device via USB-C and wake/unlock the device.
 2. Open the [CrossPoint Web Flasher](https://chazmus.github.io/crosspoint-reader/).
-3. Select your device (Xteink X4Pro, X3/X4, Sticky, X4C, M5PaperMono) and click **Connect & Install Firmware**.
+3. Select your device (Xteink X4Pro, Seeed Sticky, X4C, M5PaperMono) and click **Connect & Install Firmware**.
 4. Alternatively, use the **Custom .bin Flasher** tab to drag & drop any `.bin` file at offset `0x10000`, or view live logs with the **Serial Monitor** tab.
 
 ### Web installer (official release)

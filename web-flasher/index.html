@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CrossPoint Reader — Web Flasher & Installer</title>
-  <meta name="description" content="Flash CrossPoint Reader firmware directly to your ESP32-S3 or ESP32-C3 e-ink device from the browser.">
+  <meta name="description" content="Flash CrossPoint Reader firmware directly to your ESP32-S3 e-ink device (Xteink X4Pro, Sticky, X4C, M5PaperMono) from the browser.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
   <link rel="stylesheet" href="./styles.css">
   <!-- ESP Web Tools Web Component (ESP32 Web Serial Flasher) -->
@@ -86,18 +86,6 @@
             </div>
           </div>
 
-          <!-- Device Card: Default / X3 & X4 -->
-          <div class="device-card" data-device="default" data-chip="ESP32-C3" data-name="Xteink X3 / X4" data-file="firmware-default.bin" data-manifest="manifests/default.json">
-            <div class="device-card-header">
-              <span class="device-name">Xteink X3 / X4</span>
-              <span class="chip-tag chip-c3">ESP32-C3</span>
-            </div>
-            <p class="device-desc">Classic Xteink reader hardware with physical buttons and high-contrast monochrome panel.</p>
-            <div class="device-specs">
-              <span>Offset: <code>0x10000</code></span>
-              <span>16MB Flash</span>
-            </div>
-          </div>
 
           <!-- Device Card: Sticky -->
           <div class="device-card" data-device="sticky" data-chip="ESP32-S3" data-name="Seeed Sticky" data-file="firmware-sticky.bin" data-manifest="manifests/sticky.json">
@@ -353,8 +341,8 @@ pip install esptool
 # Flash X4Pro (ESP32-S3)
 esptool.py --chip esp32s3 -p /dev/ttyACM0 -b 921600 write_flash 0x10000 firmware-x4pro.bin
 
-# Flash X3 / X4 (ESP32-C3)
-esptool.py --chip esp32c3 -p /dev/ttyACM0 -b 921600 write_flash 0x10000 firmware-default.bin</pre>
+# Flash Seeed Sticky (ESP32-S3)
+esptool.py --chip esp32s3 -p /dev/ttyACM0 -b 921600 write_flash 0x10000 firmware-sticky.bin</pre>
           </div>
         </div>
       </div>
