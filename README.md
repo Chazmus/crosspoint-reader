@@ -93,7 +93,16 @@ USB port or browser before assuming the device is locked. Only reach for the unl
 
 ## Install firmware
 
-### Web installer (recommended)
+### Web installer (Custom Fork / GitHub Pages)
+
+Flash custom builds directly from your browser without installing Python or command-line tools:
+
+1. Connect your device via USB-C and wake/unlock the device.
+2. Open the [CrossPoint Web Flasher](https://chazmus.github.io/crosspoint-reader/).
+3. Select your device (Xteink X4Pro, X3/X4, Sticky, X4C, M5PaperMono) and click **Connect & Install Firmware**.
+4. Alternatively, use the **Custom .bin Flasher** tab to drag & drop any `.bin` file at offset `0x10000`, or view live logs with the **Serial Monitor** tab.
+
+### Web installer (official release)
 
 1. Connect your device to your computer via USB-C and wake/unlock the device
 2. Go to https://crosspointreader.com/#flash-tools, select your device (X3, X4, Xteink X4Pro, Seeed reTerminal Sticky, or M5PaperMono), and choose an official CrossPoint release.

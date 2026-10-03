@@ -1,0 +1,158 @@
+name: Build Firmware & Deploy Web Flasher
+
+on:
+  push:
+    branches:
+      - custom-crosspoint
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: 'Deploy to GitHub Pages'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.device }} (${{ matrix.chip }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: x4pro
+            device: x4pro
+            chip: ESP32-S3
+            filename: firmware-x4pro.bin
+          - env: default
+            device: default
+            chip: ESP32-C3
+            filename: firmware-default.bin
+          - env: sticky
+            device: sticky
+            chip: ESP32-S3
+            filename: firmware-sticky.bin
+          - env: x4c
+            device: x4c
+            chip: ESP32-S3
+            filename: firmware-x4c.bin
+          - env: papermono
+            device: papermono
+            chip: ESP32-S3
+            filename: firmware-papermono.bin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: false
+
+      - name: Install PlatformIO Core & build dependencies
+        run: |
+          uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+          uv pip install --system -U "littlefs-python>=0.16.0" "fatfs-ng>=0.1.14" "pyyaml>=6.0.2" \
+            "rich-click>=1.8.6" "zopfli>=0.2.2" "intelhex>=2.3.0" "rich>=14.0.0" "urllib3<2" \
+            "cryptography>=45.0.3" "certifi>=2025.8.3" "ecdsa>=0.19.1" "bitstring>=4.3.1" \
+            "reedsolo>=1.5.3,<1.8" "esp-idf-size>=2.0.0" "esp-coredump>=1.14.0"
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-v3-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-v3-${{ runner.os }}-${{ matrix.env }}-
+
+      - name: Pin pioarduino core inside platform penv
+        run: |
+          set -euo pipefail
+          pio pkg install -e ${{ matrix.env }}
+          uv pip install --python ~/.platformio/penv/bin/python "pioarduino==6.1.19"
+          ~/.platformio/penv/bin/pio --version
+
+      - name: Build ${{ matrix.env }} firmware
+        run: |
+          set -euo pipefail
+          pio run -e ${{ matrix.env }} | tee pio.log
+
+      - name: Prepare firmware assets
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          cp ".pio/build/${{ matrix.env }}/firmware.bin" "staging/${{ matrix.filename }}"
+          if [ -f ".pio/build/${{ matrix.env }}/bootloader.bin" ]; then
+            cp ".pio/build/${{ matrix.env }}/bootloader.bin" "staging/bootloader-${{ matrix.device }}.bin"
+          fi
+          if [ -f ".pio/build/${{ matrix.env }}/partitions.bin" ]; then
+            cp ".pio/build/${{ matrix.env }}/partitions.bin" "staging/partitions-${{ matrix.device }}.bin"
+          fi
+          ls -la staging/
+
+      - name: Upload ${{ matrix.device }} firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.device }}
+          path: staging/*
+          if-no-files-found: error
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'workflow_dispatch' || inputs.deploy_pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create firmware directory
+        run: mkdir -p web-flasher/firmware
+
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: web-flasher/firmware
+          pattern: firmware-*
+          merge-multiple: true
+
+      - name: Update web flasher metadata & manifests
+        run: |
+          python3 scripts/update_web_flasher_metadata.py
+          ls -la web-flasher/firmware/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web-flasher
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

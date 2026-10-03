@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrossPoint Reader — Web Flasher & Installer</title>
+  <meta name="description" content="Flash CrossPoint Reader firmware directly to your ESP32-S3 or ESP32-C3 e-ink device from the browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+  <link rel="stylesheet" href="./styles.css">
+  <!-- ESP Web Tools Web Component (ESP32 Web Serial Flasher) -->
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-main">
+        <div class="logo-box">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <path d="M12 6v6"></path>
+            <path d="M9 9h6"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="app-title">CrossPoint Web Flasher</h1>
+          <p class="app-subtitle">Install or update custom CrossPoint firmware directly from your browser via Web Serial</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge" id="badgeBranch">Branch: custom-crosspoint</span>
+        <span class="badge" id="badgeCommit">Commit: latest</span>
+        <span class="badge badge-accent" id="badgeSerial">Web Serial: Checking...</span>
+      </div>
+    </header>
+
+    <!-- Browser Compatibility Notice (Hidden by default, shown if unsupported) -->
+    <div id="unsupportedAlert" class="alert alert-warning" style="display: none;">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-content">
+        <strong>Browser Not Supported for Direct Flashing:</strong>
+        <span>Web Serial API is required to flash hardware directly from the browser. Please open this page in <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong>, <strong>Opera</strong>, or <strong>Brave</strong> on a desktop computer. You can still download prebuilt binaries below to flash using command-line tools.</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" role="tablist">
+      <button class="tab-btn active" data-tab="tabInstaller" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Web Installer
+      </button>
+      <button class="tab-btn" data-tab="tabCustom" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Custom .bin Flasher
+      </button>
+      <button class="tab-btn" data-tab="tabMonitor" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Serial Monitor
+      </button>
+      <button class="tab-btn" data-tab="tabHelp" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Help & Guide
+      </button>
+    </nav>
+
+    <!-- TAB 1: ONE-CLICK WEB INSTALLER -->
+    <section id="tabInstaller" class="tab-content active" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">1. Select Your Device</h2>
+          <span class="card-subtitle">Choose the target hardware for your CrossPoint Reader</span>
+        </div>
+
+        <div class="device-grid" id="deviceGrid">
+          <!-- Device Card: X4Pro -->
+          <div class="device-card selected" data-device="x4pro" data-chip="ESP32-S3" data-name="Xteink X4Pro" data-file="firmware-x4pro.bin" data-manifest="manifests/x4pro.json">
+            <div class="device-card-header">
+              <span class="device-name">Xteink X4Pro</span>
+              <span class="chip-tag chip-s3">ESP32-S3</span>
+            </div>
+            <p class="device-desc">800×480 SSD1677, capacitive touch, 8MB Octal PSRAM, full Lua apps & native FreeInkUI suite.</p>
+            <div class="device-specs">
+              <span>Offset: <code>0x10000</code></span>
+              <span>16MB Flash</span>
+            </div>
+          </div>
+
+          <!-- Device Card: Default / X3 & X4 -->
+          <div class="device-card" data-device="default" data-chip="ESP32-C3" data-name="Xteink X3 / X4" data-file="firmware-default.bin" data-manifest="manifests/default.json">
+            <div class="device-card-header">
+              <span class="device-name">Xteink X3 / X4</span>
+              <span class="chip-tag chip-c3">ESP32-C3</span>
+            </div>
+            <p class="device-desc">Classic Xteink reader hardware with physical buttons and high-contrast monochrome panel.</p>
+            <div class="device-specs">
+              <span>Offset: <code>0x10000</code></span>
+              <span>16MB Flash</span>
+            </div>
+          </div>
+
+          <!-- Device Card: Sticky -->
+          <div class="device-card" data-device="sticky" data-chip="ESP32-S3" data-name="Seeed Sticky" data-file="firmware-sticky.bin" data-manifest="manifests/sticky.json">
+            <div class="device-card-header">
+              <span class="device-name">Seeed reTerminal Sticky</span>
+              <span class="chip-tag chip-s3">ESP32-S3</span>
+            </div>
+            <p class="device-desc">reTerminal Sticky e-paper terminal with ESP32-S3 and integrated battery/sensors.</p>
+            <div class="device-specs">
+              <span>Offset: <code>0x10000</code></span>
+              <span>16MB Flash</span>
+            </div>
+          </div>
+
+          <!-- Device Card: X4C -->
+          <div class="device-card" data-device="x4c" data-chip="ESP32-S3" data-name="Xteink X4C" data-file="firmware-x4c.bin" data-manifest="manifests/x4c.json">
+            <div class="device-card-header">
+              <span class="device-name">Xteink X4C</span>
+              <span class="chip-tag chip-s3">ESP32-S3</span>
+            </div>
+            <p class="device-desc">Color e-paper variant with color dithering and custom palette support.</p>
+            <div class="device-specs">
+              <span>Offset: <code>0x10000</code></span>
+              <span>16MB Flash</span>
+            </div>
+          </div>
+
+          <!-- Device Card: PaperMono -->
+          <div class="device-card" data-device="papermono" data-chip="ESP32-S3" data-name="M5PaperMono" data-file="firmware-papermono.bin" data-manifest="manifests/papermono.json">
+            <div class="device-card-header">
+              <span class="device-name">M5PaperMono</span>
+              <span class="chip-tag chip-s3">ESP32-S3</span>
+            </div>
+            <p class="device-desc">M5Stack M5Paper monochrome build with IT8951 controller support.</p>
+            <div class="device-specs">
+              <span>Offset: <code>0x10000</code></span>
+              <span>16MB Flash</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Box -->
+      <div class="card action-card">
+        <div class="action-info">
+          <div class="selected-target-summary">
+            <h3>Selected: <span id="targetName">Xteink X4Pro</span></h3>
+            <p>Target Chip: <strong id="targetChip">ESP32-S3</strong> &bull; Flash Partition: <code>app0</code> (offset <code>0x10000</code>) &bull; Binary: <code id="targetFile">firmware-x4pro.bin</code></p>
+          </div>
+          <div class="action-buttons">
+            <!-- Official ESP Web Tools Installer Button -->
+            <esp-web-install-button id="espWebInstallBtn" manifest="manifests/x4pro.json">
+              <button slot="activate" class="btn btn-primary btn-lg">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Connect & Install Firmware
+              </button>
+              <div slot="unsupported" class="slot-unsupported">
+                ⚠️ Web Serial is not supported in this browser. Please use Chrome, Edge, or Brave.
+              </div>
+              <div slot="not-allowed" class="slot-unsupported">
+                ⚠️ Web Serial requires HTTPS or localhost.
+              </div>
+            </esp-web-install-button>
+
+            <!-- Direct Download Button -->
+            <a id="btnDownloadBin" href="./firmware/firmware-x4pro.bin" download class="btn btn-secondary btn-lg">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download .bin
+            </a>
+          </div>
+        </div>
+
+        <div class="instructions-box">
+          <h4>How to Install:</h4>
+          <ol>
+            <li>Connect your CrossPoint device to your computer with a high-quality <strong>USB-C data cable</strong>.</li>
+            <li>Power on / wake the device.</li>
+            <li>Click <strong>Connect & Install Firmware</strong> above.</li>
+            <li>In the browser prompt, choose the serial device (e.g. <code>USB JTAG/serial debug unit</code> or <code>CP210x</code> / <code>/dev/ttyACM0</code>).</li>
+            <li>Confirm installation in the dialog. The flasher will program the flash and reboot your device automatically!</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CUSTOM BINARY FLASHER (esptool-js) -->
+    <section id="tabCustom" class="tab-content" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Custom Firmware (.bin) Flasher</h2>
+          <span class="card-subtitle">Flash any compiled binary directly to an arbitrary flash offset using Web Serial</span>
+        </div>
+
+        <div class="custom-flasher-form">
+          <!-- Dropzone -->
+          <div class="dropzone" id="binDropzone">
+            <input type="file" id="binFileInput" accept=".bin" class="dropzone-input">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p><strong>Click to choose a .bin file</strong> or drag & drop here</p>
+            <span id="selectedFileInfo" class="file-info">No file chosen</span>
+          </div>
+
+          <!-- Settings Grid -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="flashOffset">Flash Offset (Address):</label>
+              <div class="input-with-presets">
+                <input type="text" id="flashOffset" value="0x10000" class="input-text">
+                <button type="button" class="preset-btn" data-offset="0x10000">0x10000 (App)</button>
+                <button type="button" class="preset-btn" data-offset="0x0">0x0 (Full)</button>
+              </div>
+              <small class="form-hint">CrossPoint application partition is at <code>0x10000</code> (65536). Bootloader is at <code>0x0</code>.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="flashBaud">Flash Baud Rate:</label>
+              <select id="flashBaud" class="input-select">
+                <option value="921600" selected>921,600 (Fastest, Recommended)</option>
+                <option value="460800">460,800</option>
+                <option value="230400">230,400</option>
+                <option value="115200">115,200 (Safe / Fallback)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" id="eraseAllCheckbox">
+              <span>Erase entire flash before writing (Caution: wipes NVS / settings / recovery)</span>
+            </label>
+          </div>
+
+          <!-- Progress -->
+          <div id="flashProgressBox" class="progress-box" style="display: none;">
+            <div class="progress-bar-container">
+              <div id="flashProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-status">
+              <span id="flashProgressText">Ready</span>
+              <span id="flashProgressPct">0%</span>
+            </div>
+          </div>
+
+          <div class="custom-actions">
+            <button id="btnFlashCustom" class="btn btn-primary btn-lg" disabled>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Flash Custom Binary
+            </button>
+            <button id="btnCancelFlash" class="btn btn-secondary" style="display: none;">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Terminal Output -->
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span>Flasher Log</span>
+            <button id="btnClearCustomLog" class="btn-sm">Clear</button>
+          </div>
+          <pre id="customTerminal" class="terminal-output">Ready to flash. Select a .bin file above to begin.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: SERIAL MONITOR -->
+    <section id="tabMonitor" class="tab-content" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Live Serial Monitor</h2>
+          <span class="card-subtitle">Stream hardware logs, FreeInkUI events, and Lua debug output in real-time</span>
+        </div>
+
+        <div class="monitor-controls">
+          <div class="monitor-controls-left">
+            <button id="btnConnectMonitor" class="btn btn-primary">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              Connect Monitor
+            </button>
+            <button id="btnResetDevice" class="btn btn-secondary" disabled>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Reset Device
+            </button>
+          </div>
+
+          <div class="monitor-controls-right">
+            <label for="monitorBaud" class="baud-label">Baud:</label>
+            <select id="monitorBaud" class="input-select-sm">
+              <option value="115200" selected>115,200 (Default)</option>
+              <option value="921600">921,600</option>
+              <option value="460800">460,800</option>
+              <option value="74880">74,880 (Boot ROM)</option>
+            </select>
+            <label class="checkbox-label-sm">
+              <input type="checkbox" id="autoScrollCheckbox" checked>
+              <span>Auto-scroll</span>
+            </label>
+            <button id="btnClearMonitor" class="btn btn-secondary btn-sm">Clear</button>
+            <button id="btnCopyMonitor" class="btn btn-secondary btn-sm">Copy</button>
+          </div>
+        </div>
+
+        <div class="terminal-container">
+          <pre id="monitorTerminal" class="terminal-output terminal-monitor">Click "Connect Monitor" to open serial port and stream device output...</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: HELP & GUIDE -->
+    <section id="tabHelp" class="tab-content" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Flashing Guide & Troubleshooting</h2>
+          <span class="card-subtitle">Helpful tips, drivers, and recovery procedures</span>
+        </div>
+
+        <div class="help-content">
+          <div class="help-section">
+            <h3>🔌 1. Device Connection & Drivers</h3>
+            <ul>
+              <li><strong>Linux:</strong> Ensure your Linux user account has permissions to access serial ports:
+                <code>sudo usermod -aG dialout $USER</code> (or group <code>uucp</code> on Arch Linux). Log out and log back in.
+              </li>
+              <li><strong>Windows:</strong> Modern ESP32-S3 boards (X4Pro, Sticky) use the native USB-JTAG/CDC interface, which does not require external drivers. If you have an ESP32-C3 device with CP2102 or CH340 chip, install the respective USB-to-UART driver if the port doesn't appear.</li>
+              <li><strong>macOS:</strong> Native USB serial is supported out of the box on macOS 10.15+.</li>
+              <li><strong>USB Cable:</strong> Many USB-C cables are charge-only. Verify that your cable supports data transfer.</li>
+            </ul>
+          </div>
+
+          <div class="help-section">
+            <h3>⚠️ 2. USB-Locked Devices (Xteink Factory Lock)</h3>
+            <p>Some Xteink units purchased from third-party resellers (such as AliExpress) ship with USB flashing disabled from the factory. If the browser's serial device picker doesn't display any new device when plugging it in, you can unlock it using the official OTA unlock tool:</p>
+            <p><a href="https://crosspointreader.com/#unlock-tool" target="_blank" rel="noopener noreferrer" class="link-external">Open Xteink OTA Unlocker &rarr;</a></p>
+          </div>
+
+          <div class="help-section">
+            <h3>🔄 3. Forcing Bootloader Mode (Recovery)</h3>
+            <p>If your device is unresponsive, in a bootloop, or won't accept flashing:</p>
+            <ol>
+              <li>Unplug the USB-C cable and turn off the device.</li>
+              <li>Hold down the <strong>Back</strong> button (or hardware Boot button if equipped).</li>
+              <li>While holding the button, plug the USB-C cable into your computer.</li>
+              <li>Release the button after 2 seconds. The chip will now be in ROM Download Mode and ready to flash.</li>
+            </ol>
+          </div>
+
+          <div class="help-section">
+            <h3>💻 4. Command-Line Flashing (Alternative)</h3>
+            <p>If you prefer using <code>esptool.py</code> via terminal:</p>
+            <pre class="code-block"># Install esptool
+pip install esptool
+
+# Flash X4Pro (ESP32-S3)
+esptool.py --chip esp32s3 -p /dev/ttyACM0 -b 921600 write_flash 0x10000 firmware-x4pro.bin
+
+# Flash X3 / X4 (ESP32-C3)
+esptool.py --chip esp32c3 -p /dev/ttyACM0 -b 921600 write_flash 0x10000 firmware-default.bin</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="https://github.com/Chazmus/crosspoint-reader" target="_blank" rel="noopener noreferrer">crosspoint-reader (GitHub)</a>
+        <span>&bull;</span>
+        <a href="https://github.com/Chazmus/crosspoint-apps" target="_blank" rel="noopener noreferrer">crosspoint-apps</a>
+        <span>&bull;</span>
+        <a href="https://crosspointreader.com" target="_blank" rel="noopener noreferrer">Official CrossPoint Site</a>
+      </div>
+      <p class="footer-copy">CrossPoint Reader is open source software. Built with ESP Web Tools & esptool-js.</p>
+    </footer>
+  </div>
+
+  <!-- App logic & esptool-js integration -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
