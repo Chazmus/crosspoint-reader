@@ -1,15 +1,54 @@
 /**
  * CrossPoint Web Flasher — Application Logic & Web Serial Integration
+ * Smart USB Filtering & Direct esptool-js Flashing Engine
  */
 
+// USB Vendor & Product IDs for Espressif and E-Reader USB hardware.
+// Filtering against this list hides motherboard /dev/ttyS* ports on Linux.
+const USB_FILTERS = [
+  // Espressif USB-JTAG/CDC (ESP32-S3 built-in USB)
+  { usbVendorId: 0x303a, usbProductId: 0x1001 },
+  // Espressif USB-Serial/OTG
+  { usbVendorId: 0x303a, usbProductId: 0x1002 },
+  // All Espressif devices (VID 0x303A / 12346)
+  { usbVendorId: 0x303a },
+  // Seeed Technology Co., Ltd. (VID 0x2886 / 10374) — Seeed reTerminal Sticky
+  { usbVendorId: 0x2886 },
+  // Silicon Labs CP210x (VID 0x10C4 / 4292)
+  { usbVendorId: 0x10c4 },
+  // WCH QinHeng CH340 / CH341 / CH9102 (VID 0x1A86 / 6790)
+  { usbVendorId: 0x1a86 },
+  // FTDI (VID 0x0403 / 1027)
+  { usbVendorId: 0x0403 }
+];
+
+function getPortFilters() {
+  const showAll = document.getElementById("chkShowAllPorts")?.checked;
+  if (showAll) {
+    return {};
+  }
+  return { filters: USB_FILTERS };
+}
+
+// Current selection state
+let currentDevice = {
+  id: "x4pro",
+  name: "Xteink X4Pro",
+  chip: "ESP32-S3",
+  file: "firmware-x4pro.bin",
+  manifest: "manifests/x4pro.json"
+};
+
 // ============================================================================
-// 1. Tab Navigation & Initialization
+// 1. Initialization
 // ============================================================================
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
   initDeviceSelector();
   initBrowserCheck();
+  initPortAutoDetect();
   loadMetadata();
+  initWebInstaller();
   initCustomFlasher();
   initSerialMonitor();
 });
@@ -39,7 +78,7 @@ function initTabs() {
 }
 
 // ============================================================================
-// 2. Browser Compatibility Check
+// 2. Browser Compatibility & USB Device Auto-Detection
 // ============================================================================
 function initBrowserCheck() {
   const hasSerial = "serial" in navigator;
@@ -57,8 +96,46 @@ function initBrowserCheck() {
   }
 }
 
+async function initPortAutoDetect() {
+  if (!("serial" in navigator)) return;
+
+  const updateBanner = async () => {
+    try {
+      const ports = await navigator.serial.getPorts();
+      const banner = document.getElementById("detectedPortBanner");
+      const text = document.getElementById("detectedPortText");
+
+      if (ports.length > 0) {
+        const info = ports[0].getInfo();
+        const vid = info.usbVendorId ? "0x" + info.usbVendorId.toString(16).toUpperCase() : "";
+        const pid = info.usbProductId ? "0x" + info.usbProductId.toString(16).toUpperCase() : "";
+
+        let label = "Paired USB device detected";
+        if (info.usbVendorId === 0x303a) {
+          label = `Connected: Espressif ESP32-S3 (${vid}:${pid})`;
+        } else if (info.usbVendorId === 0x2886) {
+          label = `Connected: Seeed Device (${vid}:${pid})`;
+        } else if (vid) {
+          label = `Connected USB Device: VID ${vid} PID ${pid}`;
+        }
+
+        text.textContent = label;
+        banner.style.display = "flex";
+      } else {
+        banner.style.display = "none";
+      }
+    } catch (e) {
+      console.debug("getPorts error:", e);
+    }
+  };
+
+  await updateBanner();
+  navigator.serial.addEventListener("connect", updateBanner);
+  navigator.serial.addEventListener("disconnect", updateBanner);
+}
+
 // ============================================================================
-// 3. Device Selector & Manifest Switcher
+// 3. Device Selector
 // ============================================================================
 function initDeviceSelector() {
   const cards = document.querySelectorAll(".device-card");
@@ -66,36 +143,32 @@ function initDeviceSelector() {
   const targetChip = document.getElementById("targetChip");
   const targetFile = document.getElementById("targetFile");
   const btnDownloadBin = document.getElementById("btnDownloadBin");
-  const espWebInstallBtn = document.getElementById("espWebInstallBtn");
 
   cards.forEach((card) => {
     card.addEventListener("click", () => {
       cards.forEach((c) => c.classList.remove("selected"));
       card.classList.add("selected");
 
-      const name = card.getAttribute("data-name");
-      const chip = card.getAttribute("data-chip");
-      const file = card.getAttribute("data-file");
-      const manifest = card.getAttribute("data-manifest");
+      currentDevice.id = card.getAttribute("data-device");
+      currentDevice.name = card.getAttribute("data-name");
+      currentDevice.chip = card.getAttribute("data-chip");
+      currentDevice.file = card.getAttribute("data-file");
+      currentDevice.manifest = card.getAttribute("data-manifest");
 
-      if (targetName) targetName.textContent = name;
-      if (targetChip) targetChip.textContent = chip;
-      if (targetFile) targetFile.textContent = file;
+      if (targetName) targetName.textContent = currentDevice.name;
+      if (targetChip) targetChip.textContent = currentDevice.chip;
+      if (targetFile) targetFile.textContent = currentDevice.file;
 
       if (btnDownloadBin) {
-        btnDownloadBin.href = `./firmware/${file}`;
-        btnDownloadBin.setAttribute("download", file);
-      }
-
-      if (espWebInstallBtn && manifest) {
-        espWebInstallBtn.setAttribute("manifest", manifest);
+        btnDownloadBin.href = `./firmware/${currentDevice.file}`;
+        btnDownloadBin.setAttribute("download", currentDevice.file);
       }
     });
   });
 }
 
 // ============================================================================
-// 4. Metadata & Version Loader
+// 4. Metadata Loader
 // ============================================================================
 async function loadMetadata() {
   try {
@@ -115,7 +188,230 @@ async function loadMetadata() {
 }
 
 // ============================================================================
-// 5. Custom .bin Flasher (esptool-js integration)
+// 5. Native Smart-Filtered Web Installer
+// ============================================================================
+let activeInstallTransport = null;
+let activeInstallLoader = null;
+let isInstalling = false;
+
+function initWebInstaller() {
+  const btnStart = document.getElementById("btnStartInstall");
+  const modal = document.getElementById("installModal");
+  const modalClose = document.getElementById("modalCloseBtn");
+  const modalAction = document.getElementById("modalActionBtn");
+
+  if (modalClose) {
+    modalClose.addEventListener("click", () => {
+      if (!isInstalling) {
+        modal.style.display = "none";
+      }
+    });
+  }
+
+  if (modalAction) {
+    modalAction.addEventListener("click", async () => {
+      if (isInstalling) {
+        if (confirm("Flashing is in progress. Are you sure you want to cancel?")) {
+          isInstalling = false;
+          if (activeInstallTransport) {
+            try { await activeInstallTransport.disconnect(); } catch (e) {}
+          }
+          modal.style.display = "none";
+        }
+      } else {
+        modal.style.display = "none";
+      }
+    });
+  }
+
+  if (btnStart) {
+    btnStart.addEventListener("click", async () => {
+      if (!("serial" in navigator)) {
+        alert("Web Serial is not supported in this browser. Please use Chrome, Edge, Brave, or Opera.");
+        return;
+      }
+      await runSmartWebInstall();
+    });
+  }
+}
+
+function updateModalStep(stepNum) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (!el) continue;
+    el.classList.remove("active", "done");
+    if (i < stepNum) {
+      el.classList.add("done");
+    } else if (i === stepNum) {
+      el.classList.add("active");
+    }
+  }
+}
+
+function logModal(msg) {
+  const terminal = document.getElementById("modalLogTerminal");
+  if (!terminal) return;
+  const time = new Date().toLocaleTimeString();
+  terminal.textContent += `[${time}] ${msg}\n`;
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function runSmartWebInstall() {
+  const modal = document.getElementById("installModal");
+  const modalTargetSubtitle = document.getElementById("modalTargetSubtitle");
+  const modalDeviceCard = document.getElementById("modalDeviceCard");
+  const modalChipBadge = document.getElementById("modalChipBadge");
+  const modalChipDesc = document.getElementById("modalChipDesc");
+  const modalMac = document.getElementById("modalMac");
+  const modalProgressBar = document.getElementById("modalProgressBar");
+  const modalStatusText = document.getElementById("modalStatusText");
+  const modalStatusPct = document.getElementById("modalStatusPct");
+  const modalLogTerminal = document.getElementById("modalLogTerminal");
+  const modalActionBtn = document.getElementById("modalActionBtn");
+
+  // Reset UI
+  modalTargetSubtitle.textContent = `${currentDevice.name} (${currentDevice.chip})`;
+  modalDeviceCard.style.display = "none";
+  modalProgressBar.style.width = "0%";
+  modalStatusPct.textContent = "0%";
+  modalStatusText.textContent = "Opening serial port picker...";
+  modalLogTerminal.textContent = "";
+  modalActionBtn.textContent = "Cancel";
+  modalActionBtn.classList.replace("btn-primary", "btn-secondary");
+
+  let port = null;
+  try {
+    // PASS USB_FILTERS: This hides all 32 /dev/ttyS* ports on Linux!
+    port = await navigator.serial.requestPort(getPortFilters());
+  } catch (err) {
+    if (err.name === "NotFoundError") {
+      // User cancelled port picker
+      return;
+    }
+    alert(`Could not select serial port: ${err.message || err}`);
+    return;
+  }
+
+  modal.style.display = "flex";
+  isInstalling = true;
+  updateModalStep(1); // Connect
+
+  try {
+    logModal(`Connecting to device... Port selected.`);
+    modalStatusText.textContent = "Loading esptool-js flashing engine...";
+
+    const { ESPLoader, Transport } = await import("https://unpkg.com/esptool-js@0.5.0/bundle.js");
+
+    activeInstallTransport = new Transport(port, true);
+    activeInstallLoader = new ESPLoader({
+      transport: activeInstallTransport,
+      baudrate: 921600,
+      romBaudrate: 115200,
+      terminal: {
+        clean() {},
+        writeLine(str) { logModal(str); },
+        write(str) { logModal(str); }
+      }
+    });
+
+    updateModalStep(2); // Handshake
+    modalStatusText.textContent = "Syncing with ESP32-S3 bootloader...";
+    logModal("Establishing communication with ROM bootloader...");
+
+    const chipDesc = await activeInstallLoader.main();
+    const chipName = activeInstallLoader.chip ? activeInstallLoader.chip.CHIP_NAME : "ESP32-S3";
+    let macAddress = "--:--:--";
+    try {
+      macAddress = await activeInstallLoader.chip.readMac(activeInstallLoader);
+    } catch (e) {}
+
+    logModal(`Identified chip: ${chipName} — ${chipDesc}`);
+    logModal(`MAC Address: ${macAddress}`);
+
+    // Update Device Info Card
+    modalDeviceCard.style.display = "block";
+    modalChipBadge.textContent = chipName;
+    modalChipDesc.textContent = chipDesc || chipName;
+    modalMac.textContent = macAddress;
+
+    // Verify it's an S3 device
+    if (!chipName.toUpperCase().includes("S3")) {
+      const proceed = confirm(
+        `Warning: Detected chip is '${chipName}', but this firmware branch is designed for ESP32-S3 devices.\n\nDo you want to continue flashing anyway?`
+      );
+      if (!proceed) {
+        throw new Error("Flashing cancelled: chip model does not match ESP32-S3.");
+      }
+    }
+
+    updateModalStep(3); // Flash
+    modalStatusText.textContent = `Downloading ${currentDevice.file}...`;
+    logModal(`Fetching prebuilt firmware from server: ./firmware/${currentDevice.file}`);
+
+    const fwRes = await fetch(`./firmware/${currentDevice.file}?t=${Date.now()}`);
+    if (!fwRes.ok) {
+      throw new Error(`Firmware file './firmware/${currentDevice.file}' could not be loaded from server (HTTP ${fwRes.status}). Ensure the GitHub Actions build completed successfully.`);
+    }
+
+    const fwBuffer = await fwRes.arrayBuffer();
+    logModal(`Firmware downloaded: ${fwBuffer.byteLength} bytes.`);
+
+    modalStatusText.textContent = "Writing firmware to flash partition (0x10000)...";
+    const binaryString = activeInstallLoader.ui8ToBstr(new Uint8Array(fwBuffer));
+
+    await activeInstallLoader.writeFlash({
+      fileArray: [
+        {
+          data: binaryString,
+          address: 0x10000 // CrossPoint app0 partition
+        }
+      ],
+      flashSize: "keep",
+      flashMode: "keep",
+      flashFreq: "keep",
+      eraseAll: false,
+      compress: true,
+      reportProgress: (fileIndex, written, total) => {
+        if (!isInstalling) return;
+        const pct = Math.floor((written / total) * 100);
+        modalProgressBar.style.width = `${pct}%`;
+        modalStatusPct.textContent = `${pct}%`;
+        const writtenMb = (written / (1024 * 1024)).toFixed(2);
+        const totalMb = (total / (1024 * 1024)).toFixed(2);
+        modalStatusText.textContent = `Writing: ${writtenMb} MB / ${totalMb} MB`;
+      }
+    });
+
+    updateModalStep(4); // Reboot
+    modalProgressBar.style.width = "100%";
+    modalStatusPct.textContent = "100%";
+    modalStatusText.textContent = "Flashing complete! Resetting device...";
+    logModal("Firmware successfully written! Sending hardware reset signal...");
+
+    await activeInstallLoader.hardReset();
+    logModal("Device rebooted into CrossPoint Reader.");
+
+    modalStatusText.textContent = "Success! CrossPoint is rebooting.";
+    modalActionBtn.textContent = "Done";
+    modalActionBtn.classList.replace("btn-secondary", "btn-primary");
+  } catch (err) {
+    console.error("Installation error:", err);
+    logModal(`ERROR: ${err.message || err}`);
+    modalStatusText.textContent = `Error: ${err.message || err}`;
+    modalActionBtn.textContent = "Close";
+  } finally {
+    isInstalling = false;
+    if (activeInstallTransport) {
+      try {
+        await activeInstallTransport.disconnect();
+      } catch (e) {}
+      activeInstallTransport = null;
+    }
+  }
+}
+
+// ============================================================================
+// 6. Custom .bin Flasher (uses same smart USB filter)
 // ============================================================================
 let customFileBuffer = null;
 let customFileName = "";
@@ -196,10 +492,9 @@ function initCustomFlasher() {
         return;
       }
       if (!("serial" in navigator)) {
-        alert("Web Serial is not supported in this browser. Please use Google Chrome, Edge, or Brave.");
+        alert("Web Serial is not supported in this browser. Please use Chrome, Edge, or Brave.");
         return;
       }
-
       await runCustomFlash();
     });
   }
@@ -244,8 +539,8 @@ async function runCustomFlash() {
   let esploader = null;
 
   try {
-    logCustom("Requesting Serial Port...");
-    const port = await navigator.serial.requestPort();
+    logCustom("Requesting Serial Port (smart filtered)...");
+    const port = await navigator.serial.requestPort(getPortFilters());
 
     logCustom("Loading esptool-js engine...");
     const { ESPLoader, Transport } = await import("https://unpkg.com/esptool-js@0.5.0/bundle.js");
@@ -306,23 +601,25 @@ async function runCustomFlash() {
     await esploader.hardReset();
     logCustom("Device reset signal sent. Your CrossPoint Reader is ready!");
   } catch (err) {
-    console.error("Flash error:", err);
-    logCustom(`ERROR: ${err.message || err}`);
-    progressText.textContent = `Error: ${err.message || err}`;
+    if (err.name === "NotFoundError") {
+      logCustom("User cancelled port selection.");
+    } else {
+      console.error("Flash error:", err);
+      logCustom(`ERROR: ${err.message || err}`);
+      progressText.textContent = `Error: ${err.message || err}`;
+    }
   } finally {
     if (transport) {
       try {
         await transport.disconnect();
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
     }
     btnFlash.disabled = false;
   }
 }
 
 // ============================================================================
-// 6. Live Serial Monitor
+// 7. Live Serial Monitor (uses same smart USB filter)
 // ============================================================================
 let monitorPort = null;
 let monitorReader = null;
@@ -355,7 +652,6 @@ function initSerialMonitor() {
     btnReset.addEventListener("click", async () => {
       if (!monitorPort) return;
       try {
-        // Toggle RTS / DTR to trigger ESP32 hardware reset
         await monitorPort.setSignals({ dataTerminalReady: false, requestToSend: true });
         await new Promise((r) => setTimeout(r, 100));
         await monitorPort.setSignals({ dataTerminalReady: true, requestToSend: false });
@@ -386,7 +682,8 @@ function initSerialMonitor() {
 
     try {
       const baudRate = parseInt(baudSelect.value, 10);
-      monitorPort = await navigator.serial.requestPort();
+      // Use getPortFilters() here too!
+      monitorPort = await navigator.serial.requestPort(getPortFilters());
       await monitorPort.open({ baudRate });
 
       isMonitoring = true;
