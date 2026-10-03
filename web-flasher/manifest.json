@@ -1,6 +1,6 @@
 {
   "name": "CrossPoint Reader",
-  "version": "custom-crosspoint (9ed5670)",
+  "version": "custom-crosspoint (0f66420)",
   "home_assistant_domain": "crosspoint",
   "builds": [
     {
@@ -8,15 +8,6 @@
       "parts": [
         {
           "path": "firmware/firmware-x4pro.bin",
-          "offset": 65536
-        }
-      ]
-    },
-    {
-      "chipFamily": "ESP32-C3",
-      "parts": [
-        {
-          "path": "firmware/firmware-default.bin",
           "offset": 65536
         }
       ]

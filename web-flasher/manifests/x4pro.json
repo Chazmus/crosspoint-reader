@@ -1,6 +1,6 @@
 {
   "name": "CrossPoint Reader (Xteink X4Pro)",
-  "version": "custom-crosspoint (9ed5670)",
+  "version": "custom-crosspoint (0f66420)",
   "home_assistant_domain": "crosspoint",
   "builds": [
     {

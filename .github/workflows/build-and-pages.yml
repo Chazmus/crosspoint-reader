@@ -38,10 +38,6 @@ jobs:
             device: x4pro
             chip: ESP32-S3
             filename: firmware-x4pro.bin
-          - env: default
-            device: default
-            chip: ESP32-C3
-            filename: firmware-default.bin
           - env: sticky
             device: sticky
             chip: ESP32-S3
