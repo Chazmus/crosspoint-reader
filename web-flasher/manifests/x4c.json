@@ -1,0 +1,16 @@
+{
+  "name": "CrossPoint Reader (Xteink X4C)",
+  "version": "custom-crosspoint (9ed5670)",
+  "home_assistant_domain": "crosspoint",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "../firmware/firmware-x4c.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}
