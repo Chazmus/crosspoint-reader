@@ -3,6 +3,8 @@
 
 #include <functional>
 #include <string>
+#include <utility>
+#include <vector>
 
 /**
  * HTTP client utility for fetching content and downloading files. Built on
@@ -15,6 +17,7 @@ class HttpDownloader {
   // Called with each body chunk as it arrives; return false to abort. Lets a
   // streaming parser consume the response without buffering the whole body.
   using DataCallback = std::function<bool(const uint8_t* data, size_t len)>;
+  using HeaderList = std::vector<std::pair<std::string, std::string>>;
 
   enum DownloadError {
     OK = 0,
@@ -56,4 +59,12 @@ class HttpDownloader {
                                       ProgressCallback progress = nullptr, bool* cancelFlag = nullptr,
                                       const std::string& username = "", const std::string& password = "",
                                       bool downgradeRedirectsToHttp = false);
+
+  /**
+   * Perform an HTTP/HTTPS request with an arbitrary method, custom headers, and
+   * optional request body. Returns true if a valid HTTP response was received
+   * (with outStatus and outBody populated), or false on transport/URL error.
+   */
+  static bool request(const std::string& method, const std::string& url, const HeaderList& headers,
+                      const std::string& body, int& outStatus, std::string& outBody);
 };

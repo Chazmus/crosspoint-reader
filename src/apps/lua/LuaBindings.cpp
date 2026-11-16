@@ -755,8 +755,43 @@ int l_crosspoint_disconnectWifi(lua_State* L) {
   return 0;
 }
 
+static void readHttpHeaders(lua_State* L, int idx, HttpDownloader::HeaderList& headers) {
+  if (!lua_istable(L, idx)) return;
+  lua_pushnil(L);
+  while (lua_next(L, idx) != 0) {
+    if (lua_type(L, -2) == LUA_TSTRING && lua_type(L, -1) == LUA_TSTRING) {
+      headers.emplace_back(lua_tostring(L, -2), lua_tostring(L, -1));
+    }
+    lua_pop(L, 1);
+  }
+}
+
+static int pushHttpResult(lua_State* L, int status, const std::string& body) {
+  lua_newtable(L);
+  lua_pushinteger(L, status);
+  lua_setfield(L, -2, "status");
+  lua_pushlstring(L, body.data(), body.size());
+  lua_setfield(L, -2, "body");
+  lua_pushboolean(L, status >= 200 && status < 300);
+  lua_setfield(L, -2, "ok");
+  return 1;
+}
+
 int l_crosspoint_httpGet(lua_State* L) {
   const char* url = luaL_checkstring(L, 1);
+  if (lua_istable(L, 2)) {
+    HttpDownloader::HeaderList headers;
+    readHttpHeaders(L, 2, headers);
+    int status = 0;
+    std::string response;
+    if (HttpDownloader::request("GET", url, headers, "", status, response) && status >= 200 && status < 300) {
+      lua_pushlstring(L, response.data(), response.size());
+      return 1;
+    }
+    lua_pushnil(L);
+    return 1;
+  }
+
   std::string response;
   if (HttpDownloader::fetchUrl(url, response)) {
     lua_pushlstring(L, response.data(), response.size());
@@ -764,6 +799,71 @@ int l_crosspoint_httpGet(lua_State* L) {
   }
   lua_pushnil(L);
   return 1;
+}
+
+int l_crosspoint_httpPost(lua_State* L) {
+  const char* url = luaL_checkstring(L, 1);
+  size_t bodyLen = 0;
+  const char* bodyPtr = luaL_optlstring(L, 2, "", &bodyLen);
+  std::string body(bodyPtr, bodyLen);
+
+  HttpDownloader::HeaderList headers;
+  if (lua_istable(L, 3)) {
+    readHttpHeaders(L, 3, headers);
+  }
+
+  int status = 0;
+  std::string response;
+  if (!HttpDownloader::request("POST", url, headers, body, status, response)) {
+    lua_pushnil(L);
+    lua_pushstring(L, "HTTP request failed");
+    return 2;
+  }
+  return pushHttpResult(L, status, response);
+}
+
+int l_crosspoint_httpRequest(lua_State* L) {
+  luaL_checktype(L, 1, LUA_TTABLE);
+
+  lua_getfield(L, 1, "url");
+  if (!lua_isstring(L, -1)) {
+    lua_pop(L, 1);
+    return luaL_argerror(L, 1, "missing 'url' string");
+  }
+  std::string url = lua_tostring(L, -1);
+  lua_pop(L, 1);
+
+  std::string body;
+  lua_getfield(L, 1, "body");
+  if (lua_isstring(L, -1)) {
+    size_t len = 0;
+    const char* ptr = lua_tolstring(L, -1, &len);
+    body.assign(ptr, len);
+  }
+  lua_pop(L, 1);
+
+  std::string method = body.empty() ? "GET" : "POST";
+  lua_getfield(L, 1, "method");
+  if (lua_isstring(L, -1)) {
+    method = lua_tostring(L, -1);
+  }
+  lua_pop(L, 1);
+
+  HttpDownloader::HeaderList headers;
+  lua_getfield(L, 1, "headers");
+  if (lua_istable(L, -1)) {
+    readHttpHeaders(L, -1, headers);
+  }
+  lua_pop(L, 1);
+
+  int status = 0;
+  std::string response;
+  if (!HttpDownloader::request(method, url, headers, body, status, response)) {
+    lua_pushnil(L);
+    lua_pushstring(L, "HTTP request failed");
+    return 2;
+  }
+  return pushHttpResult(L, status, response);
 }
 
 int l_crosspoint_setSleepApp(lua_State* L) {
@@ -2963,6 +3063,8 @@ void registerBindings(lua_State* L, HostContext* ctx) {
       {"withWifi", l_crosspoint_withWifi},
       {"disconnectWifi", l_crosspoint_disconnectWifi},
       {"httpGet", l_crosspoint_httpGet},
+      {"httpPost", l_crosspoint_httpPost},
+      {"httpRequest", l_crosspoint_httpRequest},
       {"getBattery", l_crosspoint_getBattery},
       {"getTime", l_crosspoint_getTime},
       {"setSleepApp", l_crosspoint_setSleepApp},
