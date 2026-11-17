@@ -17,7 +17,6 @@
 #include "MappedInputManager.h"
 #include "activities/Activity.h"
 #include "fontIds.h"
-#include "network/HttpDownloader.h"
 #include "util/QrUtils.h"
 
 namespace lua_host {
@@ -778,21 +777,13 @@ static int pushHttpResult(lua_State* L, int status, const std::string& body) {
 
 int l_crosspoint_httpGet(lua_State* L) {
   const char* url = luaL_checkstring(L, 1);
+  LuaHttpClient::HeaderList headers;
   if (lua_istable(L, 2)) {
-    LuaHttpClient::HeaderList headers;
     readHttpHeaders(L, 2, headers);
-    int status = 0;
-    std::string response;
-    if (LuaHttpClient::request("GET", url, headers, "", status, response) && status >= 200 && status < 300) {
-      lua_pushlstring(L, response.data(), response.size());
-      return 1;
-    }
-    lua_pushnil(L);
-    return 1;
   }
-
+  int status = 0;
   std::string response;
-  if (HttpDownloader::fetchUrl(url, response)) {
+  if (LuaHttpClient::request("GET", url, headers, "", status, response) && status >= 200 && status < 300) {
     lua_pushlstring(L, response.data(), response.size());
     return 1;
   }
@@ -921,7 +912,7 @@ static int l_ui_getTheme(lua_State* L) {
   lua_setfield(L, -2, "tabBarHeight");
   lua_pushinteger(L, NOTOSANS_14_FONT_ID);
   lua_setfield(L, -2, "fontTitle");
-  lua_pushinteger(L, NOTOSERIF_12_FONT_ID);
+  lua_pushinteger(L, NOTOSANS_12_FONT_ID);
   lua_setfield(L, -2, "fontBody");
   lua_pushinteger(L, UI_10_FONT_ID);
   lua_setfield(L, -2, "fontSmall");
@@ -3002,9 +2993,9 @@ void registerBindings(lua_State* L, HostContext* ctx) {
   lua_setfield(L, -2, "FONT_NOTOSANS_14");
   lua_pushinteger(L, NOTOSANS_16_FONT_ID);
   lua_setfield(L, -2, "FONT_NOTOSANS_16");
-  lua_pushinteger(L, NOTOSERIF_12_FONT_ID);
+  lua_pushinteger(L, NOTOSANS_12_FONT_ID);
   lua_setfield(L, -2, "FONT_NOTOSERIF_12");
-  lua_pushinteger(L, NOTOSERIF_14_FONT_ID);
+  lua_pushinteger(L, NOTOSANS_14_FONT_ID);
   lua_setfield(L, -2, "FONT_NOTOSERIF_14");
 
   lua_pushinteger(L, 0);
