@@ -4,6 +4,8 @@ Project: Open-source e-reader firmware targeting ESP32-S3 devices (e.g., Xteink 
 Mission: Provide a high-performance reading and application experience taking full advantage of the dual-core ESP32-S3, PSRAM, and touch screen capabilities.
 
 > **Note on Fork Target**: This fork specifically targets **ESP32-S3** hardware. Legacy ESP32-C3-only constraints (no PSRAM, extreme DRAM starvation) are superseded by the S3 architecture (e.g., 8MB Octal PSRAM on X4 Pro), enabling modular apps, games, and richer features while maintaining rock-solid stability.
+>
+> **Fork Encapsulation & Upstream Sync Discipline**: This fork periodically merges/rebases from `upstream/develop`. Keep fork-specific features and extensions strictly encapsulated in fork-owned directories (such as `src/apps/`) rather than modifying upstream-owned files (such as `src/network/HttpDownloader.*`, core reader activities, or shared libraries). When new functionality needs lower-level capabilities (e.g., custom HTTP methods/headers for Lua), implement a dedicated helper inside the fork-owned module (e.g., `src/apps/lua/LuaHttpClient.*` over `SecureHttpClient` / `esp_http_client`) instead of extending upstream classes, unless a core hook is strictly unavoidable.
 
 ## AI Agent Identity and Cognitive Rules
 
