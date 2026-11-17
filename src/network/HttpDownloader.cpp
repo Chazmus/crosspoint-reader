@@ -395,11 +395,16 @@ bool HttpDownloader::request(const std::string& method, const std::string& url, 
   }
 
   esp_http_client_method_t espMethod = HTTP_METHOD_GET;
-  if (equalsIgnoreCase(method, "POST")) espMethod = HTTP_METHOD_POST;
-  else if (equalsIgnoreCase(method, "PUT")) espMethod = HTTP_METHOD_PUT;
-  else if (equalsIgnoreCase(method, "DELETE")) espMethod = HTTP_METHOD_DELETE;
-  else if (equalsIgnoreCase(method, "PATCH")) espMethod = HTTP_METHOD_PATCH;
-  else if (equalsIgnoreCase(method, "HEAD")) espMethod = HTTP_METHOD_HEAD;
+  if (equalsIgnoreCase(method, "POST"))
+    espMethod = HTTP_METHOD_POST;
+  else if (equalsIgnoreCase(method, "PUT"))
+    espMethod = HTTP_METHOD_PUT;
+  else if (equalsIgnoreCase(method, "DELETE"))
+    espMethod = HTTP_METHOD_DELETE;
+  else if (equalsIgnoreCase(method, "PATCH"))
+    espMethod = HTTP_METHOD_PATCH;
+  else if (equalsIgnoreCase(method, "HEAD"))
+    espMethod = HTTP_METHOD_HEAD;
   esp_http_client_set_method(client, espMethod);
 
   bool hasUserAgent = false;
