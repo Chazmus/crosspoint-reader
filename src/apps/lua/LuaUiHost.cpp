@@ -2,22 +2,19 @@
 
 #include <BoardConfig.h>
 #include <CrossPointSettings.h>
+#include <FreeInkUIIcon.h>
 #include <Logging.h>
 
 #include "components/UIScale.h"
 #include "components/UIThemeTokens.h"
-#include <FreeInkUIIcon.h>
 #include "components/icons/headerIcons.h"
 #include "fontIds.h"
 
 namespace lua_host {
 
-const freeink::ui::BitmapRef LuaUiHost::getHeaderBackIcon() {
-  return freeink::ui::bitmapFromIcon(icon_header_back_32);
-}
+const freeink::ui::BitmapRef LuaUiHost::getHeaderBackIcon() { return freeink::ui::bitmapFromIcon(icon_header_back_32); }
 
-LuaUiHost::LuaUiHost(const GfxRenderer& renderer)
-    : renderer_(renderer), target_(renderer, BoardConfig::hasTouch()) {
+LuaUiHost::LuaUiHost(const GfxRenderer& renderer) : renderer_(renderer), target_(renderer, BoardConfig::hasTouch()) {
   const auto spec = uiScaleSpec();
   target_.setFont(freeink::ui::GfxRendererTarget::FONT_SMALL, spec.smallFontId);
   target_.setFont(freeink::ui::GfxRendererTarget::FONT_BODY, spec.bodyFontId);
@@ -36,9 +33,7 @@ LuaUiHost::LuaUiHost(const GfxRenderer& renderer)
   refreshTokens();
 }
 
-LuaUiHost::~LuaUiHost() {
-  detachLua();
-}
+LuaUiHost::~LuaUiHost() { detachLua(); }
 
 void LuaUiHost::detachLua() {
   clearCallbacks(activeL_);
@@ -131,22 +126,18 @@ void LuaUiHost::beginFrame(lua_State* L) {
 
   deviceContext_ = target_.deviceContext();
   emptySnap_ = freeink::ui::InputSnapshot{};
-  frame_ = std::make_unique<freeink::ui::Frame<INTERACTION_CAPACITY>>(
-      target_, deviceContext_, emptySnap_, interactions_);
+  frame_ =
+      std::make_unique<freeink::ui::Frame<INTERACTION_CAPACITY>>(target_, deviceContext_, emptySnap_, interactions_);
 }
 
-void LuaUiHost::endFrame() {
-  interactions_.publish();
-}
+void LuaUiHost::endFrame() { interactions_.publish(); }
 
-freeink::ui::ActionId LuaUiHost::registerCallback(lua_State* L, int funcIndex, int16_t value,
-                                                  const std::string& name) {
+freeink::ui::ActionId LuaUiHost::registerCallback(lua_State* L, int funcIndex, int16_t value, const std::string& name) {
   return registerCallbackWithInvoker(L, funcIndex, nullptr, value, name);
 }
 
-freeink::ui::ActionId LuaUiHost::registerCallbackWithInvoker(lua_State* L, int funcIndex,
-                                                            UiInvoker invoker, int16_t value,
-                                                            const std::string& name) {
+freeink::ui::ActionId LuaUiHost::registerCallbackWithInvoker(lua_State* L, int funcIndex, UiInvoker invoker,
+                                                             int16_t value, const std::string& name) {
   freeink::ui::ActionId action = nextActionId_++;
   int ref = -1;
   if (L && funcIndex != 0 && lua_isfunction(L, funcIndex)) {

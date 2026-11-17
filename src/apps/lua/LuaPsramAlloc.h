@@ -1,8 +1,9 @@
 #pragma once
 
+#include <esp_heap_caps.h>
+
 #include <cstddef>
 #include <cstdlib>
-#include <esp_heap_caps.h>
 
 inline void* luaPsramAlloc(void* ud, void* ptr, size_t osize, size_t nsize) {
   (void)ud;
