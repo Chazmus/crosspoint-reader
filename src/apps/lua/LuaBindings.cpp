@@ -9,6 +9,7 @@
 #include <WiFi.h>
 
 #include "LuaAppActivity.h"
+#include "LuaHttpClient.h"
 #include "LuaUiHost.h"
 #include <FreeInkUI.h>
 #include "MappedInputManager.h"
@@ -755,7 +756,7 @@ int l_crosspoint_disconnectWifi(lua_State* L) {
   return 0;
 }
 
-static void readHttpHeaders(lua_State* L, int idx, HttpDownloader::HeaderList& headers) {
+static void readHttpHeaders(lua_State* L, int idx, LuaHttpClient::HeaderList& headers) {
   if (!lua_istable(L, idx)) return;
   lua_pushnil(L);
   while (lua_next(L, idx) != 0) {
@@ -780,11 +781,11 @@ static int pushHttpResult(lua_State* L, int status, const std::string& body) {
 int l_crosspoint_httpGet(lua_State* L) {
   const char* url = luaL_checkstring(L, 1);
   if (lua_istable(L, 2)) {
-    HttpDownloader::HeaderList headers;
+    LuaHttpClient::HeaderList headers;
     readHttpHeaders(L, 2, headers);
     int status = 0;
     std::string response;
-    if (HttpDownloader::request("GET", url, headers, "", status, response) && status >= 200 && status < 300) {
+    if (LuaHttpClient::request("GET", url, headers, "", status, response) && status >= 200 && status < 300) {
       lua_pushlstring(L, response.data(), response.size());
       return 1;
     }
@@ -807,14 +808,14 @@ int l_crosspoint_httpPost(lua_State* L) {
   const char* bodyPtr = luaL_optlstring(L, 2, "", &bodyLen);
   std::string body(bodyPtr, bodyLen);
 
-  HttpDownloader::HeaderList headers;
+  LuaHttpClient::HeaderList headers;
   if (lua_istable(L, 3)) {
     readHttpHeaders(L, 3, headers);
   }
 
   int status = 0;
   std::string response;
-  if (!HttpDownloader::request("POST", url, headers, body, status, response)) {
+  if (!LuaHttpClient::request("POST", url, headers, body, status, response)) {
     lua_pushnil(L);
     lua_pushstring(L, "HTTP request failed");
     return 2;
@@ -849,7 +850,7 @@ int l_crosspoint_httpRequest(lua_State* L) {
   }
   lua_pop(L, 1);
 
-  HttpDownloader::HeaderList headers;
+  LuaHttpClient::HeaderList headers;
   lua_getfield(L, 1, "headers");
   if (lua_istable(L, -1)) {
     readHttpHeaders(L, -1, headers);
@@ -858,7 +859,7 @@ int l_crosspoint_httpRequest(lua_State* L) {
 
   int status = 0;
   std::string response;
-  if (!HttpDownloader::request(method, url, headers, body, status, response)) {
+  if (!LuaHttpClient::request(method, url, headers, body, status, response)) {
     lua_pushnil(L);
     lua_pushstring(L, "HTTP request failed");
     return 2;
