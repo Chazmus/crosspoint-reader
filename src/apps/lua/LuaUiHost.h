@@ -2,6 +2,7 @@
 
 #include <FreeInkUICore.h>
 #include <FreeInkUIGfxRenderer.h>
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -9,8 +10,8 @@
 #include <vector>
 
 extern "C" {
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 #include <lualib.h>
 }
 
@@ -49,10 +50,9 @@ class LuaUiHost {
 
   bool dispatchTouch(int x, int y, lua_State* L);
 
-  freeink::ui::ActionId registerCallback(lua_State* L, int funcIndex, int16_t value = 0,
-                                         const std::string& name = "");
-  freeink::ui::ActionId registerCallbackWithInvoker(lua_State* L, int funcIndex, UiInvoker invoker,
-                                                    int16_t value = 0, const std::string& name = "");
+  freeink::ui::ActionId registerCallback(lua_State* L, int funcIndex, int16_t value = 0, const std::string& name = "");
+  freeink::ui::ActionId registerCallbackWithInvoker(lua_State* L, int funcIndex, UiInvoker invoker, int16_t value = 0,
+                                                    const std::string& name = "");
 
   freeink::ui::Frame<INTERACTION_CAPACITY>* currentFrame() { return frame_.get(); }
   freeink::ui::GfxRendererTarget& drawTarget() { return target_; }

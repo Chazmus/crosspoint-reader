@@ -166,7 +166,7 @@ void LuaAppActivity::onEnter() {
   }
 
   luaL_openlibs(L_);
- 
+
   uiHost_ = std::make_unique<lua_host::LuaUiHost>(renderer);
   hostCtx_.renderer = &renderer;
   hostCtx_.input = &mappedInput;
@@ -392,9 +392,7 @@ void LuaAppActivity::connectWifi(int callbackRef, bool autoDisconnect) {
 
   WiFi.mode(WIFI_STA);
   startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
-                         [this](const ActivityResult& res) {
-                           onWifiSelectionComplete(!res.isCancelled);
-                         });
+                         [this](const ActivityResult& res) { onWifiSelectionComplete(!res.isCancelled); });
 #else
   wifiStartedByUs_ = false;
   wifiAutoDisconnect_ = autoDisconnect;
@@ -451,9 +449,8 @@ void LuaAppActivity::onWifiSelectionComplete(const bool success) {
   }
 }
 
-void LuaAppActivity::promptText(const std::string& title, const std::string& initialText,
-                                const size_t maxLength, const InputType inputType,
-                                const int confirmRef, const int cancelRef) {
+void LuaAppActivity::promptText(const std::string& title, const std::string& initialText, const size_t maxLength,
+                                const InputType inputType, const int confirmRef, const int cancelRef) {
   promptConfirmRef_ = confirmRef;
   promptCancelRef_ = cancelRef;
 

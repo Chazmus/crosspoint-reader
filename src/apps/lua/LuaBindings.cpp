@@ -3,7 +3,10 @@
 #include <Arduino.h>
 #include <Bitmap.h>
 #include <CrossPointSettings.h>
+#include <FreeInkUI.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
+#include <HalPowerManager.h>
 #include <HalStorage.h>
 #include <Logging.h>
 #include <WiFi.h>
@@ -11,13 +14,10 @@
 #include "LuaAppActivity.h"
 #include "LuaHttpClient.h"
 #include "LuaUiHost.h"
-#include <FreeInkUI.h>
 #include "MappedInputManager.h"
 #include "activities/Activity.h"
 #include "fontIds.h"
 #include "network/HttpDownloader.h"
-#include <HalClock.h>
-#include <HalPowerManager.h>
 #include "util/QrUtils.h"
 
 namespace lua_host {
@@ -617,9 +617,7 @@ int l_log_error(lua_State* L) {
   return 0;
 }
 
-int l_crosspoint_log(lua_State* L) {
-  return l_log_info(L);
-}
+int l_crosspoint_log(lua_State* L) { return l_log_info(L); }
 
 int l_crosspoint_getMemoryInfo(lua_State* L) {
   lua_newtable(L);
@@ -1153,7 +1151,8 @@ static int l_ui_drawTabBar(lua_State* L) {
     tp.tabStyles.selected.radius = tokens.controlRadius;
   }
 
-  freeink::ui::Rect barRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect barRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                            static_cast<int16_t>(h)};
   freeink::ui::tabBar(*frame, barRect, tp);
 
   lua_newtable(L);
@@ -1269,7 +1268,8 @@ static int l_ui_drawButton(lua_State* L) {
     bp.styles.normal.borderWidth = 1;
   }
 
-  freeink::ui::Rect btnRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect btnRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                            static_cast<int16_t>(h)};
   freeink::ui::button(*frame, btnRect, bp);
 
   lua_newtable(L);
@@ -1328,7 +1328,8 @@ static int l_ui_drawCard(lua_State* L) {
     lua_pop(L, 1);
   }
 
-  freeink::ui::Rect cardRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect cardRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                             static_cast<int16_t>(h)};
 
   lua_getfield(L, 1, "onClick");
   if (lua_isfunction(L, -1)) {
@@ -1340,11 +1341,14 @@ static int l_ui_drawCard(lua_State* L) {
   if (variant == "filled") {
     frame->target().fill(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), static_cast<uint8_t>(radius));
   } else if (variant == "dithered") {
-    frame->target().fill(cardRect, freeink::ui::Paint::dither(freeink::ui::Color::LightGray), static_cast<uint8_t>(radius));
-    frame->target().stroke(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1, static_cast<uint8_t>(radius));
+    frame->target().fill(cardRect, freeink::ui::Paint::dither(freeink::ui::Color::LightGray),
+                         static_cast<uint8_t>(radius));
+    frame->target().stroke(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1,
+                           static_cast<uint8_t>(radius));
   } else {
     frame->target().fill(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::White), static_cast<uint8_t>(radius));
-    frame->target().stroke(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1, static_cast<uint8_t>(radius));
+    frame->target().stroke(cardRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1,
+                           static_cast<uint8_t>(radius));
   }
 
   lua_newtable(L);
@@ -1491,7 +1495,8 @@ static int l_ui_drawToggle(lua_State* L) {
   tp.width = static_cast<int16_t>(w);
   tp.height = static_cast<int16_t>(h);
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::toggle(*frame, rect, tp);
 
   lua_newtable(L);
@@ -1593,7 +1598,8 @@ static int l_ui_drawDialog(lua_State* L) {
   const int dialogH = freeink::ui::optionDialogHeight(frame->target(), dp, static_cast<int16_t>(dialogW));
   const int dx = (screenW - dialogW) / 2;
   const int dy = (screenH - dialogH) / 2;
-  freeink::ui::Rect drect{static_cast<int16_t>(dx), static_cast<int16_t>(dy), static_cast<int16_t>(dialogW), static_cast<int16_t>(dialogH)};
+  freeink::ui::Rect drect{static_cast<int16_t>(dx), static_cast<int16_t>(dy), static_cast<int16_t>(dialogW),
+                          static_cast<int16_t>(dialogH)};
 
   freeink::ui::optionDialog(*frame, drect, dp);
 
@@ -1735,7 +1741,8 @@ static int l_ui_drawSlider(lua_State* L) {
   sp.radius = static_cast<uint8_t>(radius);
   sp.horizontalPadding = 8;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::slider(*frame, rect, sp);
 
   lua_newtable(L);
@@ -1809,7 +1816,8 @@ static int l_ui_drawCapsuleSlider(lua_State* L) {
       lua_getfield(L, 1, "onClick");
     }
     if (lua_isfunction(L, -1)) {
-      auto invoker = [x, w, h, minVal, maxVal, stroke](lua_State* state, int touchX, int /*touchY*/, int16_t /*val*/) -> int {
+      auto invoker = [x, w, h, minVal, maxVal, stroke](lua_State* state, int touchX, int /*touchY*/,
+                                                       int16_t /*val*/) -> int {
         int innerH = h - 2 * stroke;
         int cap = innerH / 2;
         int travel = (w - 2 * stroke) - 2 * cap;
@@ -1834,7 +1842,8 @@ static int l_ui_drawCapsuleSlider(lua_State* L) {
   cp.radius = static_cast<uint8_t>(radius);
   cp.enabled = enabled;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::capsuleSlider(*frame, rect, cp);
 
   lua_newtable(L);
@@ -1904,7 +1913,8 @@ static int l_ui_drawProgressBar(lua_State* L) {
     pbp.fill = freeink::ui::Paint::solid(freeink::ui::Color::Black);
   }
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::progressBar(*frame, rect, pbp);
 
   lua_newtable(L);
@@ -1986,7 +1996,8 @@ static int l_ui_drawCheckbox(lua_State* L) {
   cp.radius = static_cast<uint8_t>(radius);
   cp.text.font = freeink::ui::GfxRendererTarget::FONT_BODY;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::checkbox(*frame, rect, cp);
 
   lua_newtable(L);
@@ -2072,7 +2083,8 @@ static int l_ui_drawSettingRow(lua_State* L) {
   srp.subtitleText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
   srp.valueText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::settingRow(*frame, rect, srp);
 
   lua_newtable(L);
@@ -2145,7 +2157,8 @@ static int l_ui_drawToggleRow(lua_State* L) {
         lua_pushboolean(state, !checked);
         return 1;
       };
-      act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), checked ? 0 : 1, "toggleRow");
+      act =
+          ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), std::move(invoker), checked ? 0 : 1, "toggleRow");
     }
     lua_pop(L, 1);
   }
@@ -2161,7 +2174,8 @@ static int l_ui_drawToggleRow(lua_State* L) {
   trp.toggleAction = act;
   trp.radius = static_cast<uint8_t>(tokens.controlRadius);
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::toggleRow(*frame, rect, trp);
 
   lua_newtable(L);
@@ -2254,7 +2268,8 @@ static int l_ui_drawStepperRow(lua_State* L) {
   srp.increment = incAct;
   srp.buttonRadius = static_cast<uint8_t>(tokens.controlRadius);
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::stepperRow(*frame, rect, srp);
 
   lua_newtable(L);
@@ -2348,7 +2363,8 @@ static int l_ui_drawRadioGroup(lua_State* L) {
   rgp.radius = static_cast<uint8_t>(tokens.controlRadius);
   rgp.text.font = freeink::ui::GfxRendererTarget::FONT_BODY;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::radioGroup(*frame, rect, rgp);
 
   lua_newtable(L);
@@ -2453,7 +2469,8 @@ static int l_ui_drawTable(lua_State* L) {
   tp.grid = freeink::ui::Paint::solid(freeink::ui::Color::Black);
   tp.gridWidth = 1;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(rowHeight * rows)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(rowHeight * rows)};
   freeink::ui::table(*frame, rect, tp);
 
   lua_newtable(L);
@@ -2502,8 +2519,10 @@ static int l_ui_drawMetricCard(lua_State* L) {
     if (lua_isstring(L, -1)) label = lua_tostring(L, -1);
     lua_pop(L, 1);
     lua_getfield(L, 1, "value");
-    if (lua_isstring(L, -1)) value = lua_tostring(L, -1);
-    else if (lua_isnumber(L, -1)) value = std::to_string(lua_tointeger(L, -1));
+    if (lua_isstring(L, -1))
+      value = lua_tostring(L, -1);
+    else if (lua_isnumber(L, -1))
+      value = std::to_string(lua_tointeger(L, -1));
     lua_pop(L, 1);
     lua_getfield(L, 1, "unit");
     if (lua_isstring(L, -1)) unit = lua_tostring(L, -1);
@@ -2539,7 +2558,8 @@ static int l_ui_drawMetricCard(lua_State* L) {
   mcp.valueText.font = freeink::ui::GfxRendererTarget::FONT_TITLE;
   mcp.captionText.font = freeink::ui::GfxRendererTarget::FONT_SMALL;
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::metricCard(*frame, rect, mcp);
 
   lua_newtable(L);
@@ -2628,7 +2648,8 @@ static int l_ui_drawContextMenu(lua_State* L) {
   cmp.itemText.font = freeink::ui::GfxRendererTarget::FONT_BODY;
   cmp.rowHeight = static_cast<int16_t>(rowH);
 
-  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect rect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                         static_cast<int16_t>(h)};
   freeink::ui::contextMenu(*frame, rect, cmp);
 
   lua_newtable(L);
@@ -2807,7 +2828,8 @@ static int l_ui_drawTextField(lua_State* L) {
     lua_pop(L, 1);
   }
 
-  freeink::ui::Rect fieldRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w), static_cast<int16_t>(h)};
+  freeink::ui::Rect fieldRect{static_cast<int16_t>(x), static_cast<int16_t>(y), static_cast<int16_t>(w),
+                              static_cast<int16_t>(h)};
 
   if (enabled) {
     lua_getfield(L, 1, "onClick");
@@ -2838,7 +2860,8 @@ static int l_ui_drawTextField(lua_State* L) {
           return -1;
         };
 
-        freeink::ui::ActionId act = ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), invoker, 0, "textFieldAutoPrompt");
+        freeink::ui::ActionId act =
+            ctx->uiHost->registerCallbackWithInvoker(L, lua_gettop(L), invoker, 0, "textFieldAutoPrompt");
         frame->hit(fieldRect, act);
         lua_pop(L, 1);
       } else {
@@ -2849,11 +2872,13 @@ static int l_ui_drawTextField(lua_State* L) {
 
   // Draw background and border
   if (variant == "filled") {
-    frame->target().fill(fieldRect, freeink::ui::Paint::dither(freeink::ui::Color::LightGray), static_cast<uint8_t>(radius));
+    frame->target().fill(fieldRect, freeink::ui::Paint::dither(freeink::ui::Color::LightGray),
+                         static_cast<uint8_t>(radius));
   } else {
     frame->target().fill(fieldRect, freeink::ui::Paint::solid(freeink::ui::Color::White), static_cast<uint8_t>(radius));
   }
-  frame->target().stroke(fieldRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1, static_cast<uint8_t>(radius));
+  frame->target().stroke(fieldRect, freeink::ui::Paint::solid(freeink::ui::Color::Black), 1,
+                         static_cast<uint8_t>(radius));
 
   const int paddingX = 12;
   if (!label.empty()) {
@@ -3034,11 +3059,7 @@ void registerBindings(lua_State* L, HostContext* ctx) {
 
   // Register log module
   static const luaL_Reg logFuncs[] = {
-      {"debug", l_log_debug},
-      {"info", l_log_info},
-      {"warn", l_log_warn},
-      {"error", l_log_error},
-      {nullptr, nullptr},
+      {"debug", l_log_debug}, {"info", l_log_info}, {"warn", l_log_warn}, {"error", l_log_error}, {nullptr, nullptr},
   };
   registerModule(L, "log", logFuncs, ctx);
 

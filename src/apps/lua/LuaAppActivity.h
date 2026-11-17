@@ -50,8 +50,8 @@ class LuaAppActivity final : public Activity {
   void connectWifi(int callbackRef, bool autoDisconnect = false);
   void disconnectWifi();
 
-  void promptText(const std::string& title, const std::string& initialText, size_t maxLength,
-                  InputType inputType, int confirmRef, int cancelRef);
+  void promptText(const std::string& title, const std::string& initialText, size_t maxLength, InputType inputType,
+                  int confirmRef, int cancelRef);
 
   static std::unique_ptr<Activity> create(const AppDescriptor& desc, GfxRenderer& renderer, MappedInputManager& input);
   static bool renderSleepScreen(const AppDescriptor& desc, GfxRenderer& renderer);
